@@ -33,7 +33,7 @@ echo   "path": "python",
 echo   "args": ["%HOST_PATH%"],
 echo   "type": "stdio",
 echo   "allowed_origins": [
-echo     "chrome-extension://YOUR_EXTENSION_ID_HERE/"
+echo     "chrome-extension://nkllpcigbgnfijeobjeneepbhpnnijbk/"
 echo   ]
 echo }
 ) > "%MANIFEST_PATH%"
