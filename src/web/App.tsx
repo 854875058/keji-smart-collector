@@ -5,9 +5,10 @@ import type { Snippet } from '../lib/types'
 import { formatDate } from '../lib/utils'
 import { Button } from '../sidepanel/components/ui/button'
 import { Input } from '../sidepanel/components/ui/input'
+import { Textarea } from '../sidepanel/components/ui/textarea'
 import {
   Search, FolderOpen, Star, Trash2, ExternalLink, Copy,
-  CloudUpload, FileText, Pencil, X, ChevronRight, ChevronDown,
+  Pencil, X, Save, FileText,
 } from 'lucide-react'
 
 export default function WebApp() {
@@ -17,9 +18,10 @@ export default function WebApp() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [toast, setToast] = useState<string | null>(null)
-  const [user, setUser] = useState<any>(null)
+  const [highlightId, setHighlightId] = useState<string | null>(null)
   const supabaseRef = useRef(createSupabaseClient())
 
+  // 初始化：加载数据 + 读取 URL 参数
   useEffect(() => {
     const load = async () => {
       const [s, f, af] = await Promise.all([
@@ -30,20 +32,25 @@ export default function WebApp() {
       setSnippets(s)
       setFolders(f)
       setActiveFolder(af)
-      if (s.length > 0 && !selectedId) setSelectedId(s[0].id)
+
+      // 从 URL 读取 ?snippet=ID
+      const params = new URLSearchParams(window.location.search)
+      const snippetId = params.get('snippet')
+      if (snippetId) {
+        setSelectedId(snippetId)
+        setHighlightId(snippetId)
+        setTimeout(() => setHighlightId(null), 2500)
+      } else if (s.length > 0) {
+        setSelectedId(s[0].id)
+      }
     }
     load()
 
-    const { data } = supabaseRef.current.auth.onAuthStateChange((_, session) => {
-      setUser(mapUser(session?.user))
-    })
-    supabaseRef.current.auth.getSession().then(({ data }) => {
-      setUser(mapUser(data.session?.user))
-    })
-
+    const { data } = supabaseRef.current.auth.onAuthStateChange(() => {})
     return () => data.subscription.unsubscribe()
   }, [])
 
+  // 监听 storage 变化
   useEffect(() => {
     const listener = (changes: any) => {
       if (changes.snippets) setSnippets(changes.snippets.newValue || [])
@@ -77,11 +84,6 @@ export default function WebApp() {
     () => snippets.find((s) => s.id === selectedId) || null,
     [snippets, selectedId]
   )
-
-  const handleCopy = async (s: Snippet) => {
-    await navigator.clipboard.writeText(s.answer)
-    showToast('已复制')
-  }
 
   const handleDelete = async (id: string) => {
     await storage.deleteSnippet(id)
@@ -122,7 +124,6 @@ export default function WebApp() {
               />
             </div>
 
-            {/* 文件夹列表 */}
             <FolderList
               folders={folders}
               activeFolder={activeFolder}
@@ -130,12 +131,9 @@ export default function WebApp() {
               onFolderChange={setActiveFolder}
             />
 
-            {/* 笔记列表 */}
             <div className="space-y-2 overflow-y-auto pr-1 mt-2 flex-1">
               {filtered.length === 0 && (
-                <div className="text-sm text-slate-500 py-8 text-center">
-                  暂无笔记
-                </div>
+                <div className="text-sm text-slate-500 py-8 text-center">暂无笔记</div>
               )}
               {filtered.map((s) => (
                 <button
@@ -144,13 +142,11 @@ export default function WebApp() {
                     selectedId === s.id
                       ? 'bg-slate-900 text-white border-slate-900 shadow-lg'
                       : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
-                  }`}
+                  } ${highlightId === s.id ? 'ring-2 ring-amber-400 shadow-[0_0_0_4px_rgba(251,191,36,0.18)]' : ''}`}
                   onClick={() => setSelectedId(s.id)}
                 >
                   <div className="font-semibold text-sm line-clamp-2">{s.title}</div>
-                  <div className="text-xs mt-2 line-clamp-2 opacity-80">
-                    Q: {s.question}
-                  </div>
+                  <div className="text-xs mt-2 line-clamp-2 opacity-80">Q: {s.question}</div>
                   <div className="flex items-center gap-2 mt-3 text-[10px] opacity-70">
                     {s.folder && (
                       <span className="inline-flex items-center gap-1">
@@ -171,13 +167,14 @@ export default function WebApp() {
               </div>
             ) : (
               <NoteDetail
+                key={selected.id}
                 snippet={selected}
                 onDelete={handleDelete}
-                onCopy={handleCopy}
                 onUpdate={async (id, changes) => {
                   await storage.updateSnippet(id, changes)
                   showToast('已保存')
                 }}
+                showToast={showToast}
               />
             )}
           </section>
@@ -187,20 +184,16 @@ export default function WebApp() {
   )
 }
 
+// ── 文件夹列表 ──────────────────────────────────────
+
 function FolderList({
-  folders,
-  activeFolder,
-  snippets,
-  onFolderChange,
+  folders, activeFolder, snippets, onFolderChange,
 }: {
   folders: string[]
   activeFolder: string
   snippets: Snippet[]
   onFolderChange: (f: string) => void
 }) {
-  const favCount = useMemo(() => snippets.filter((s) => s.isFavourite).length, [snippets])
-  const unfiledCount = useMemo(() => snippets.filter((s) => !s.folder).length, [snippets])
-
   return (
     <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
       <button
@@ -230,52 +223,112 @@ function FolderList({
   )
 }
 
+// ── 笔记详情 + 编辑 ──────────────────────────────────
+
 function NoteDetail({
-  snippet,
-  onDelete,
-  onCopy,
-  onUpdate,
+  snippet, onDelete, onUpdate, showToast,
 }: {
   snippet: Snippet
   onDelete: (id: string) => void
-  onCopy: (s: Snippet) => void
   onUpdate: (id: string, changes: Partial<Snippet>) => Promise<void>
+  showToast: (msg: string) => void
 }) {
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(snippet.title)
+  const [editAnswer, setEditAnswer] = useState(snippet.answer)
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(snippet.answer)
+      showToast('已复制')
+    } catch {
+      showToast('复制失败')
+    }
+  }
+
+  const handleSave = async () => {
+    await onUpdate(snippet.id, {
+      title: editTitle.trim() || '未命名笔记',
+      answer: editAnswer,
+    })
+    setEditing(false)
+  }
+
+  const handleCancel = () => {
+    setEditTitle(snippet.title)
+    setEditAnswer(snippet.answer)
+    setEditing(false)
+  }
+
   return (
     <div className="flex flex-col h-full">
+      {/* 顶栏：标题 + 操作按钮 */}
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="text-xs uppercase tracking-[0.3em] text-slate-400">
             {snippet.source}
           </div>
-          <h2 className="text-2xl font-semibold text-slate-900 mt-2">
-            {snippet.title}
-          </h2>
+          {editing ? (
+            <Input
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              className="text-2xl font-semibold mt-2"
+            />
+          ) : (
+            <h2 className="text-2xl font-semibold text-slate-900 mt-2">
+              {snippet.title}
+            </h2>
+          )}
           <div className="mt-2 text-xs text-slate-500">
             保存于 {formatDate(snippet.timestamp)}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {snippet.url && (
-            <button
-              className="px-3 py-1 rounded-full text-xs border border-slate-200 hover:border-slate-400"
-              onClick={() => window.open(snippet.url)}
-            >
-              <ExternalLink className="w-3 h-3 inline-block mr-1" /> 原网页
-            </button>
+          {editing ? (
+            <>
+              <button
+                className="px-3 py-1 rounded-full text-xs border border-slate-200 hover:border-slate-400"
+                onClick={handleCancel}
+              >
+                <X className="w-3 h-3 inline-block mr-1" /> 取消
+              </button>
+              <button
+                className="px-3 py-1 rounded-full text-xs border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700"
+                onClick={handleSave}
+              >
+                <Save className="w-3 h-3 inline-block mr-1" /> 保存
+              </button>
+            </>
+          ) : (
+            <>
+              {snippet.url && (
+                <button
+                  className="px-3 py-1 rounded-full text-xs border border-slate-200 hover:border-slate-400"
+                  onClick={() => window.open(snippet.url)}
+                >
+                  <ExternalLink className="w-3 h-3 inline-block mr-1" /> 原网页
+                </button>
+              )}
+              <button
+                className="px-3 py-1 rounded-full text-xs border border-slate-200 hover:border-slate-400"
+                onClick={handleCopy}
+              >
+                <Copy className="w-3 h-3 inline-block mr-1" /> 复制文本
+              </button>
+              <button
+                className="px-3 py-1 rounded-full text-xs border border-emerald-200 text-emerald-700 hover:border-emerald-400"
+                onClick={() => setEditing(true)}
+              >
+                <Pencil className="w-3 h-3 inline-block mr-1" /> 编辑
+              </button>
+              <button
+                className="px-3 py-1 rounded-full text-xs border border-red-200 text-red-600 hover:border-red-400"
+                onClick={() => onDelete(snippet.id)}
+              >
+                <Trash2 className="w-3 h-3 inline-block mr-1" /> 删除
+              </button>
+            </>
           )}
-          <button
-            className="px-3 py-1 rounded-full text-xs border border-slate-200 hover:border-slate-400"
-            onClick={() => onCopy(snippet)}
-          >
-            <Copy className="w-3 h-3 inline-block mr-1" /> 复制文本
-          </button>
-          <button
-            className="px-3 py-1 rounded-full text-xs border border-red-200 text-red-600 hover:border-red-400"
-            onClick={() => onDelete(snippet.id)}
-          >
-            <Trash2 className="w-3 h-3 inline-block mr-1" /> 删除
-          </button>
         </div>
       </div>
 
@@ -291,11 +344,40 @@ function NoteDetail({
         ))}
       </div>
 
-      {/* 内容预览 */}
-      <article
-        className="mt-6 keji-rich min-h-[480px] rounded-2xl border border-slate-200 bg-white px-5 py-5 prose prose-sm max-w-none"
-        dangerouslySetInnerHTML={{ __html: snippet.contentHtml || snippet.answer }}
-      />
+      {/* 内容区 */}
+      <div className="mt-6 flex-1">
+        {editing ? (
+          <Textarea
+            value={editAnswer}
+            onChange={(e) => setEditAnswer(e.target.value)}
+            className="min-h-[480px] text-sm leading-relaxed"
+          />
+        ) : (
+          <article
+            className="keji-rich min-h-[480px] rounded-2xl border border-slate-200 bg-white px-5 py-5 prose prose-sm max-w-none"
+            dangerouslySetInnerHTML={{ __html: snippet.contentHtml || formatAnswer(snippet.answer) }}
+          />
+        )}
+      </div>
     </div>
   )
+}
+
+/** 简单 Markdown → HTML */
+function formatAnswer(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br />')
+    .replace(/^/, '<p>')
+    .replace(/$/, '</p>')
 }
