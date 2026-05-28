@@ -41,14 +41,24 @@ export interface Snippet {
   summary?: string
 }
 
-/** Agent 配置 */
+/** AI 提供商预设 */
+export interface AIPreset {
+  id: string
+  name: string
+  baseUrl: string
+  defaultModel: string
+  description?: string
+}
+
+/** Agent 配置（通用 OpenAI 兼容格式） */
 export interface AgentConfig {
-  provider: 'claude' | 'openai' | 'gemini'
-  model: string
-  apiKey: string
+  baseUrl: string      // API 基础 URL
+  apiKey: string       // API Key
+  model: string        // 模型名称（自由输入）
   temperature?: number
   maxTokens?: number
   systemPrompt?: string
+  presetId?: string    // 使用的预设 ID（可选）
 }
 
 /** Obsidian 配置 */
@@ -98,11 +108,12 @@ export type ContentMessage =
 
 /** 消息类型：扩展 ↔ Obsidian Native Host */
 export interface ObsidianRequest {
-  action: 'export' | 'export_batch' | 'check_exists' | 'get_vault_path'
+  action: 'export' | 'export_batch' | 'import_vault' | 'check_exists' | 'get_vault_path' | 'set_vault_path' | 'list_vault_folders'
   payload: {
     snippet?: Snippet
     snippets?: Snippet[]
     path?: string
+    subfolder?: string
   }
 }
 

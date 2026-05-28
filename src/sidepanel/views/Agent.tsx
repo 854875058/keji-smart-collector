@@ -163,6 +163,18 @@ export function AgentView({ snippets, folders }: Props) {
   )
 }
 
+/** 预设提供商（快捷填充 base URL） */
+const AI_PRESETS = [
+  { id: 'openai', name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', defaultModel: 'gpt-4o-mini' },
+  { id: 'deepseek', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', defaultModel: 'deepseek-chat' },
+  { id: 'claude', name: 'Claude (Anthropic)', baseUrl: 'https://api.anthropic.com/v1', defaultModel: 'claude-sonnet-4-20250514' },
+  { id: 'gemini', name: 'Gemini (OpenAI 兼容)', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', defaultModel: 'gemini-2.0-flash' },
+  { id: 'siliconflow', name: 'SiliconFlow', baseUrl: 'https://api.siliconflow.cn/v1', defaultModel: 'Qwen/Qwen2.5-7B-Instruct' },
+  { id: 'moonshot', name: 'Moonshot (Kimi)', baseUrl: 'https://api.moonshot.cn/v1', defaultModel: 'moonshot-v1-8k' },
+  { id: 'zhipu', name: '智谱 AI', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', defaultModel: 'glm-4-flash' },
+  { id: 'custom', name: '自定义', baseUrl: '', defaultModel: '' },
+]
+
 function AgentSettings({
   config,
   onSave,
@@ -172,66 +184,88 @@ function AgentSettings({
   onSave: (c: AgentConfig) => void
   onClose: () => void
 }) {
-  const [provider, setProvider] = useState<'openai' | 'claude' | 'gemini'>(config?.provider || 'openai')
+  const [presetId, setPresetId] = useState(config?.presetId || 'openai')
+  const [baseUrl, setBaseUrl] = useState(config?.baseUrl || 'https://api.openai.com/v1')
   const [model, setModel] = useState(config?.model || 'gpt-4o-mini')
   const [apiKey, setApiKey] = useState(config?.apiKey || '')
 
+  const handlePresetChange = (id: string) => {
+    setPresetId(id)
+    const preset = AI_PRESETS.find((p) => p.id === id)
+    if (preset && id !== 'custom') {
+      setBaseUrl(preset.baseUrl)
+      setModel(preset.defaultModel)
+    }
+  }
+
   const handleSave = async () => {
     const cfg: AgentConfig = {
-      provider: provider as AgentConfig['provider'],
+      baseUrl: baseUrl.replace(/\/+$/, ''),  // 去掉末尾斜杠
       model,
       apiKey,
       temperature: 0.7,
+      presetId,
     }
     await storage.setAgentConfig(cfg)
     onSave(cfg)
     onClose()
   }
 
-  const modelOptions: Record<string, string[]> = {
-    openai: ['gpt-4o', 'gpt-4o-mini'],
-    claude: ['claude-sonnet-4-20250514', 'claude-haiku-4-20250414'],
-    gemini: ['gemini-2.0-flash', 'gemini-2.5-pro'],
-  }
-
   return (
     <div className="p-6 space-y-4">
       <h3 className="font-semibold text-slate-900">AI 助手设置</h3>
       <p className="text-xs text-slate-500">
-        配置你自己的 AI API Key，数据不会上传到我们的服务器
+        支持所有 OpenAI 兼容格式的 API，数据不会上传到我们的服务器
       </p>
 
       <div className="space-y-3">
+        {/* 快捷预设 */}
         <div>
-          <label className="text-xs text-slate-600 mb-1 block">AI 提供商</label>
-          <select
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            value={provider}
-            onChange={(e) => {
-              const p = e.target.value as 'openai' | 'claude' | 'gemini'
-              setProvider(p)
-              setModel(modelOptions[p]?.[0] || '')
-            }}
-          >
-            <option value="openai">OpenAI</option>
-            <option value="claude">Claude (Anthropic)</option>
-            <option value="gemini">Gemini (Google)</option>
-          </select>
+          <label className="text-xs text-slate-600 mb-1 block">快捷预设</label>
+          <div className="grid grid-cols-2 gap-1.5">
+            {AI_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => handlePresetChange(p.id)}
+                className={`text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                  presetId === p.id
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
         </div>
 
+        {/* Base URL */}
         <div>
-          <label className="text-xs text-slate-600 mb-1 block">模型</label>
-          <select
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          <label className="text-xs text-slate-600 mb-1 block">API Base URL</label>
+          <Input
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            placeholder="https://api.openai.com/v1"
+          />
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            兼容 OpenAI 格式的 API 地址，末尾不需要加 /chat/completions
+          </p>
+        </div>
+
+        {/* 模型名称 */}
+        <div>
+          <label className="text-xs text-slate-600 mb-1 block">模型名称</label>
+          <Input
             value={model}
             onChange={(e) => setModel(e.target.value)}
-          >
-            {(modelOptions[provider] || []).map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
+            placeholder="gpt-4o-mini"
+          />
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            直接输入模型名称，如 gpt-4o、deepseek-chat、claude-sonnet-4-20250514
+          </p>
         </div>
 
+        {/* API Key */}
         <div>
           <label className="text-xs text-slate-600 mb-1 block">API Key</label>
           <Input
@@ -247,7 +281,7 @@ function AgentSettings({
         <Button variant="outline" className="flex-1" onClick={onClose}>
           取消
         </Button>
-        <Button className="flex-1" onClick={handleSave} disabled={!apiKey.trim()}>
+        <Button className="flex-1" onClick={handleSave} disabled={!apiKey.trim() || !baseUrl.trim()}>
           保存
         </Button>
       </div>
@@ -308,68 +342,28 @@ async function callAI(
   config: AgentConfig,
   messages: { role: string; content: string }[]
 ): Promise<string> {
-  if (config.provider === 'openai') {
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages,
-        temperature: config.temperature || 0.7,
-        max_tokens: config.maxTokens || 2048,
-      }),
-    })
-    const data = await resp.json()
-    if (data.error) throw new Error(data.error.message)
-    return data.choices[0].message.content
+  const url = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: config.model,
+      messages,
+      temperature: config.temperature ?? 0.7,
+      max_tokens: config.maxTokens ?? 2048,
+    }),
+  })
+
+  if (!resp.ok) {
+    const errBody = await resp.text().catch(() => '')
+    throw new Error(`API 请求失败 (${resp.status}): ${errBody.slice(0, 200)}`)
   }
 
-  if (config.provider === 'claude') {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': config.apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: config.model,
-        system: messages.find((m) => m.role === 'system')?.content || '',
-        messages: messages.filter((m) => m.role !== 'system'),
-        max_tokens: config.maxTokens || 2048,
-      }),
-    })
-    const data = await resp.json()
-    if (data.error) throw new Error(data.error.message)
-    return data.content[0].text
-  }
-
-  if (config.provider === 'gemini') {
-    const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: messages
-            .filter((m) => m.role !== 'system')
-            .map((m) => ({
-              role: m.role === 'assistant' ? 'model' : 'user',
-              parts: [{ text: m.content }],
-            })),
-          systemInstruction: messages.find((m) => m.role === 'system')
-            ? { parts: [{ text: messages.find((m) => m.role === 'system')!.content }] }
-            : undefined,
-        }),
-      }
-    )
-    const data = await resp.json()
-    if (data.error) throw new Error(data.error.message)
-    return data.candidates[0].content.parts[0].text
-  }
-
-  throw new Error(`不支持的 AI 提供商: ${config.provider}`)
+  const data = await resp.json()
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error))
+  return data.choices?.[0]?.message?.content || ''
 }
