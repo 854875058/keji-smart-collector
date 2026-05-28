@@ -6,9 +6,11 @@ import { formatDate } from '../lib/utils'
 import { Button } from '../sidepanel/components/ui/button'
 import { Input } from '../sidepanel/components/ui/input'
 import { Textarea } from '../sidepanel/components/ui/textarea'
+import { RichTextEditor } from '../sidepanel/components/RichTextEditor'
 import {
   Search, FolderOpen, Star, Trash2, ExternalLink, Copy,
-  Pencil, X, Save, FileText,
+  Pencil, X, Save, FileText, Plus, ChevronDown, ChevronRight,
+  FolderPlus, MoreHorizontal,
 } from 'lucide-react'
 
 export default function WebApp() {
@@ -19,6 +21,9 @@ export default function WebApp() {
   const [searchQuery, setSearchQuery] = useState('')
   const [toast, setToast] = useState<string | null>(null)
   const [highlightId, setHighlightId] = useState<string | null>(null)
+  const [showNewFolder, setShowNewFolder] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [moveTarget, setMoveTarget] = useState<{ snippetId: string; folder: string | null } | null>(null)
   const supabaseRef = useRef(createSupabaseClient())
 
   // 初始化：加载数据 + 读取 URL 参数
@@ -91,6 +96,29 @@ export default function WebApp() {
     showToast('已删除')
   }
 
+  const handleCreateFolder = async () => {
+    const name = newFolderName.trim()
+    if (!name) return
+    await storage.addFolder(name)
+    setActiveFolder(name)
+    setNewFolderName('')
+    setShowNewFolder(false)
+    showToast(`已创建「${name}」`)
+  }
+
+  const handleMoveToFolder = async (snippetId: string, folder: string | null) => {
+    await storage.updateSnippet(snippetId, { folder: folder || undefined })
+    setMoveTarget(null)
+    showToast(folder ? `已移动到「${folder}」` : '已移出文件夹')
+  }
+
+  const handleDeleteFolder = async (folderName: string) => {
+    if (!confirm(`确定删除「${folderName}」？该文件夹下的笔记也会被删除。`)) return
+    await storage.deleteFolder(folderName)
+    if (activeFolder === folderName) setActiveFolder('')
+    showToast(`已删除「${folderName}」`)
+  }
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#bbf7d0_0%,_#ecfdf5_35%,_#f8fafc_70%)] text-slate-900">
       {toast && (
@@ -129,6 +157,13 @@ export default function WebApp() {
               activeFolder={activeFolder}
               snippets={snippets}
               onFolderChange={setActiveFolder}
+              onCreateFolder={() => setShowNewFolder(true)}
+              onDeleteFolder={handleDeleteFolder}
+              showNewFolder={showNewFolder}
+              newFolderName={newFolderName}
+              onNewFolderNameChange={setNewFolderName}
+              onCreateFolderConfirm={handleCreateFolder}
+              onCancelNewFolder={() => { setShowNewFolder(false); setNewFolderName('') }}
             />
 
             <div className="space-y-2 overflow-y-auto pr-1 mt-2 flex-1">
@@ -175,6 +210,7 @@ export default function WebApp() {
                   showToast('已保存')
                 }}
                 showToast={showToast}
+                folders={folders}
               />
             )}
           </section>
@@ -188,37 +224,87 @@ export default function WebApp() {
 
 function FolderList({
   folders, activeFolder, snippets, onFolderChange,
+  onCreateFolder, onDeleteFolder,
+  showNewFolder, newFolderName, onNewFolderNameChange, onCreateFolderConfirm, onCancelNewFolder,
 }: {
   folders: string[]
   activeFolder: string
   snippets: Snippet[]
   onFolderChange: (f: string) => void
+  onCreateFolder: () => void
+  onDeleteFolder: (name: string) => void
+  showNewFolder: boolean
+  newFolderName: string
+  onNewFolderNameChange: (v: string) => void
+  onCreateFolderConfirm: () => void
+  onCancelNewFolder: () => void
 }) {
   return (
-    <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
-      <button
-        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs ${
-          !activeFolder ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-slate-50'
-        }`}
-        onClick={() => onFolderChange('')}
-      >
-        <span className="font-medium">全部笔记</span>
-        <span className="ml-auto text-[11px] text-slate-400">{snippets.length}</span>
-      </button>
-      {folders.map((f) => (
+    <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-xs font-semibold text-slate-600">笔记本目录</div>
         <button
-          key={f}
-          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs ${
-            activeFolder === f ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-slate-50'
-          }`}
-          onClick={() => onFolderChange(f)}
+          className="text-[11px] text-emerald-600 hover:text-emerald-700 hover:underline"
+          onClick={onCreateFolder}
         >
-          <span>{f}</span>
-          <span className="ml-auto text-[11px] text-slate-400">
-            {snippets.filter((s) => s.folder === f).length}
-          </span>
+          + 新建
         </button>
-      ))}
+      </div>
+
+      {/* 新建文件夹输入框 */}
+      {showNewFolder && (
+        <div className="flex gap-1 mb-2">
+          <input
+            className="flex-1 rounded border border-slate-200 px-2 py-1 text-xs"
+            placeholder="文件夹名称..."
+            value={newFolderName}
+            onChange={(e) => onNewFolderNameChange(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onCreateFolderConfirm()}
+            autoFocus
+          />
+          <button className="px-2 py-1 rounded text-xs bg-emerald-600 text-white" onClick={onCreateFolderConfirm}>
+            确定
+          </button>
+          <button className="px-2 py-1 rounded text-xs text-slate-500 hover:bg-slate-100" onClick={onCancelNewFolder}>
+            取消
+          </button>
+        </div>
+      )}
+
+      <div className="space-y-0.5 max-h-48 overflow-y-auto">
+        <button
+          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs ${
+            !activeFolder ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-slate-50'
+          }`}
+          onClick={() => onFolderChange('')}
+        >
+          <span className="font-medium">全部笔记</span>
+          <span className="ml-auto text-[11px] text-slate-400">{snippets.length}</span>
+        </button>
+        {folders.map((f) => (
+          <div key={f} className="group flex items-center">
+            <button
+              className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left ${
+                activeFolder === f ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-slate-50'
+              }`}
+              onClick={() => onFolderChange(f)}
+            >
+              <FolderOpen className="w-3 h-3 shrink-0" />
+              <span className="truncate">{f}</span>
+              <span className="ml-auto text-[11px] text-slate-400">
+                {snippets.filter((s) => s.folder === f).length}
+              </span>
+            </button>
+            <button
+              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition-opacity"
+              title="删除文件夹"
+              onClick={() => onDeleteFolder(f)}
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -226,16 +312,19 @@ function FolderList({
 // ── 笔记详情 + 编辑 ──────────────────────────────────
 
 function NoteDetail({
-  snippet, onDelete, onUpdate, showToast,
+  snippet, onDelete, onUpdate, showToast, folders = [],
 }: {
   snippet: Snippet
   onDelete: (id: string) => void
   onUpdate: (id: string, changes: Partial<Snippet>) => Promise<void>
   showToast: (msg: string) => void
+  folders?: string[]
 }) {
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(snippet.title)
   const [editAnswer, setEditAnswer] = useState(snippet.answer)
+  const [editHtml, setEditHtml] = useState(snippet.contentHtml || '')
+  const [showMoveMenu, setShowMoveMenu] = useState(false)
 
   const handleCopy = async () => {
     try {
@@ -250,6 +339,7 @@ function NoteDetail({
     await onUpdate(snippet.id, {
       title: editTitle.trim() || '未命名笔记',
       answer: editAnswer,
+      contentHtml: editHtml,
     })
     setEditing(false)
   }
@@ -257,6 +347,7 @@ function NoteDetail({
   const handleCancel = () => {
     setEditTitle(snippet.title)
     setEditAnswer(snippet.answer)
+    setEditHtml(snippet.contentHtml || '')
     setEditing(false)
   }
 
@@ -332,11 +423,40 @@ function NoteDetail({
         </div>
       </div>
 
-      {/* 标签 */}
-      <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-600">
-        {snippet.folder && (
-          <span className="px-2 py-1 bg-slate-100 rounded-full">{snippet.folder}</span>
-        )}
+      {/* 标签 + 移动到文件夹 */}
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+        {/* 当前文件夹 */}
+        <div className="relative">
+          <button
+            className="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+            onClick={() => setShowMoveMenu(!showMoveMenu)}
+          >
+            <FolderOpen className="w-3 h-3" />
+            {snippet.folder || '未归类'}
+            <ChevronDown className="w-3 h-3" />
+          </button>
+          {showMoveMenu && (
+            <div className="absolute top-full left-0 mt-1 w-40 bg-white rounded-lg border border-slate-200 shadow-lg z-10 py-1">
+              <button
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50"
+                onClick={() => { onUpdate(snippet.id, { folder: undefined }); setShowMoveMenu(false) }}
+              >
+                未归类
+              </button>
+              {folders.map((f) => (
+                <button
+                  key={f}
+                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 ${
+                    snippet.folder === f ? 'text-emerald-600 font-medium' : ''
+                  }`}
+                  onClick={() => { onUpdate(snippet.id, { folder: f }); setShowMoveMenu(false) }}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {snippet.tags?.map((t) => (
           <span key={t} className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full">
             #{t}
@@ -347,10 +467,14 @@ function NoteDetail({
       {/* 内容区 */}
       <div className="mt-6 flex-1">
         {editing ? (
-          <Textarea
-            value={editAnswer}
-            onChange={(e) => setEditAnswer(e.target.value)}
-            className="min-h-[480px] text-sm leading-relaxed"
+          <RichTextEditor
+            initialHtml={snippet.contentHtml || formatAnswer(snippet.answer)}
+            minHeightClassName="min-h-[480px]"
+            toolbarStickyTopClassName="top-16"
+            onChange={({ html, text }) => {
+              setEditHtml(html)
+              setEditAnswer(text)
+            }}
           />
         ) : (
           <article
