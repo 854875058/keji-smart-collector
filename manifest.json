@@ -9,8 +9,7 @@
     "activeTab",
     "scripting",
     "contextMenus",
-    "identity",
-    "nativeMessaging"
+    "identity"
   ],
   "host_permissions": [
     "<all_urls>"

@@ -3,8 +3,8 @@
     "allowed_origins":  [
                             "chrome-extension://nkllpcigbgnfijeobjeneepbhpnnijbk/"
                         ],
-    "description":  "可记智能收藏助手 - Obsidian 导出服务",
-    "path":  "python",
+    "description":  "Keji Obsidian Export Service",
+    "path":  "D:\\Anaconda3\\python.exe",
     "type":  "stdio",
     "args":  [
                  "E:\\工作\\国信\\AI数据集项目\\测试文件夹\\可记-智能收藏助手\\native-host\\host.py"
