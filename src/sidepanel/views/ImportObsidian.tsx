@@ -46,8 +46,17 @@ export function ImportObsidian({ onImportComplete, showToast }: Props) {
     let imported = 0
     let skipped = 0
 
+    // 收集所有文件夹路径
+    const folderSet = new Set<string>()
+
     for (const snippet of preview) {
       try {
+        // 提取顶层文件夹名（Obsidian 的一级目录）
+        if (snippet.folder) {
+          const topFolder = snippet.folder.split('/')[0]
+          if (topFolder) folderSet.add(topFolder)
+        }
+
         const existing = await storage.getSnippets()
         const duplicate = existing.find(
           (s) => s.id === snippet.id || s.title === snippet.title
@@ -64,8 +73,13 @@ export function ImportObsidian({ onImportComplete, showToast }: Props) {
       setProgress((prev) => ({ ...prev, done: prev.done + 1 }))
     }
 
+    // 同步 Obsidian 文件夹结构到笔记本目录
+    for (const folder of folderSet) {
+      await storage.addFolder(folder)
+    }
+
     setImporting(false)
-    showToast('success', `导入完成：${imported} 条新增，${skipped} 条跳过`)
+    showToast('success', `导入完成：${imported} 条新增，${skipped} 条跳过，${folderSet.size} 个目录已同步`)
     onImportComplete()
   }
 
