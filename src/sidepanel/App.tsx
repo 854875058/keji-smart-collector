@@ -94,68 +94,56 @@ export default function App() {
       )}
 
       {/* 顶部导航 */}
-      <nav className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2">
-        <button
-          onClick={() => setView('home')}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-            view === 'home' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-          }`}
-        >
-          <Home className="h-4 w-4" />
-          首页
-        </button>
-        <button
-          onClick={() => setView('snippets')}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-            view === 'snippets' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-          }`}
-        >
-          <FolderOpen className="h-4 w-4" />
-          笔记
-        </button>
-        <button
-          onClick={() => setView('collection')}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-            view === 'collection' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-          }`}
-        >
-          <Inbox className="h-4 w-4" />
-          收集
-        </button>
-        <button
-          onClick={() => setView('agent')}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-            view === 'agent' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-          }`}
-        >
-          <Sparkles className="h-4 w-4" />
-          AI 助手
-        </button>
-        <button
-          onClick={() => setView('sync')}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-            view === 'sync' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-          }`}
-        >
-          <FolderSync className="h-4 w-4" />
-          同步
-        </button>
-        <button
-          onClick={() => setView('auth')}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-            view === 'auth' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-          }`}
-        >
-          <Cloud className="h-4 w-4" />
-          云同步
-        </button>
-        <div className="ml-auto">
+      <nav className="flex items-center border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1.5">
+        {/* 主导航 - 图标+文字 */}
+        <div className="flex items-center gap-0.5 flex-1">
+          {[
+            { id: 'home' as const, icon: Home, label: '首页' },
+            { id: 'snippets' as const, icon: FolderOpen, label: '笔记' },
+            { id: 'collection' as const, icon: Inbox, label: '收集' },
+            { id: 'agent' as const, icon: Sparkles, label: 'AI' },
+          ].map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setView(id)}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                view === id
+                  ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                  : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* 次要功能 - 仅图标 */}
+        <div className="flex items-center gap-0.5">
+          {[
+            { id: 'sync' as const, icon: FolderSync, label: '同步' },
+            { id: 'auth' as const, icon: Cloud, label: '云同步' },
+          ].map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setView(id)}
+              className={`p-1.5 rounded-md transition-colors ${
+                view === id
+                  ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                  : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600'
+              }`}
+              title={label}
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </button>
+          ))}
+          <div className="w-px h-4 bg-slate-200 dark:bg-slate-600 mx-0.5" />
           <button
             onClick={toggleTheme}
-            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-            title={theme === 'dark' ? '切换到亮色模式' : '切换到深色模式'}
+            className="p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            title={theme === 'dark' ? '亮色模式' : '深色模式'}
           >
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
           </button>
         </div>
       </nav>
