@@ -71,7 +71,15 @@ export function showTooltip(
   saveBtn?.addEventListener('mousedown', (e) => {
     e.preventDefault()
     e.stopPropagation()
-    chrome.runtime.sendMessage({ type: 'SAVE_SNIPPET', payload: snippet })
+    try {
+      chrome.runtime.sendMessage({ type: 'SAVE_SNIPPET', payload: snippet }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('[keji] 保存失败:', chrome.runtime.lastError.message)
+        }
+      })
+    } catch (err) {
+      console.error('[keji] 发送消息失败:', err)
+    }
     const label = saveBtn.querySelector('span')
     if (label) label.textContent = '✓ 已保存'
     div.classList.add('keji-tooltip--saved')
@@ -83,7 +91,15 @@ export function showTooltip(
   collectBtn?.addEventListener('mousedown', (e) => {
     e.preventDefault()
     e.stopPropagation()
-    chrome.runtime.sendMessage({ type: 'ADD_TO_COLLECTION', payload: snippet })
+    try {
+      chrome.runtime.sendMessage({ type: 'ADD_TO_COLLECTION', payload: snippet }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('[keji] 加入收集箱失败:', chrome.runtime.lastError.message)
+        }
+      })
+    } catch (err) {
+      console.error('[keji] 发送消息失败:', err)
+    }
     const label = collectBtn.querySelector('span')
     if (label) label.textContent = '✓ 已加入'
     div.classList.add('keji-tooltip--saved')
@@ -93,12 +109,24 @@ export function showTooltip(
 
 /** 初始化划词监听 */
 export function initTooltipListener() {
+  // 防止 tooltip 内部操作时触发新的 tooltip
+  let isTooltipInteracting = false
+
   document.addEventListener('mouseup', (e) => {
+    // 如果正在操作 tooltip，跳过
+    if (isTooltipInteracting) return
+
     setTimeout(() => {
+      // 再次检查
+      if (isTooltipInteracting) return
+
       const capture = captureSelection()
       const text = capture?.text ?? ''
       if (text.length < 5) {
-        removeTooltip()
+        // 不要立即移除 tooltip（可能正在点击按钮）
+        if (!(e.target as Element)?.closest?.('#keji-tooltip')) {
+          removeTooltip()
+        }
         return
       }
       // 点击 tooltip 内部时不移除
@@ -114,7 +142,10 @@ export function initTooltipListener() {
   })
 
   document.addEventListener('mousedown', (e) => {
-    if (!(e.target as Element)?.closest?.('#keji-tooltip')) {
+    if ((e.target as Element)?.closest?.('#keji-tooltip')) {
+      isTooltipInteracting = true
+      setTimeout(() => { isTooltipInteracting = false }, 200)
+    } else {
       removeTooltip()
     }
   })
