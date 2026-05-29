@@ -6,7 +6,7 @@ import {
   FolderSync, Download, Upload, Loader2, CheckCircle, AlertCircle, HardDrive, RefreshCw,
 } from 'lucide-react'
 import {
-  selectVault, getSavedVault, syncFromObsidian, syncToObsidian,
+  selectVault, getSavedVault, syncFromObsidian, syncToObsidian, autoSync,
   type SyncResult,
 } from '../../obsidian/SyncManager'
 
@@ -21,16 +21,53 @@ export function SyncObsidian({ snippets, showToast }: Props) {
   const [syncing, setSyncing] = useState(false)
   const [lastResult, setLastResult] = useState<SyncResult | null>(null)
   const [direction, setDirection] = useState<'pull' | 'push' | null>(null)
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(false)
+  const [syncInterval, setSyncInterval] = useState(60) // 秒
+  const [lastSyncTime, setLastSyncTime] = useState<string>('')
 
-  // 尝试恢复已保存的目录句柄
+  // 初始化：恢复 Vault + 启动自动同步
   useEffect(() => {
-    getSavedVault().then((h) => {
+    const init = async () => {
+      await autoSync.init()
+      const h = await getSavedVault()
       if (h) {
         setVaultHandle(h)
         setVaultName(h.name)
+        autoSync.setVault(h)
       }
+      if (autoSync.running) setAutoSyncEnabled(true)
+    }
+    init()
+
+    // 监听自动同步结果
+    const unsub = autoSync.onSync((result) => {
+      setLastResult(result)
+      setLastSyncTime(new Date().toLocaleTimeString())
     })
+
+    // 窗口获得焦点时触发同步
+    const onFocus = () => { if (autoSync.running) autoSync.runSync() }
+    window.addEventListener('focus', onFocus)
+
+    return () => { unsub(); window.removeEventListener('focus', onFocus) }
   }, [])
+
+  const toggleAutoSync = () => {
+    if (autoSyncEnabled) {
+      autoSync.stop()
+      setAutoSyncEnabled(false)
+    } else {
+      if (!vaultHandle) {
+        showToast('error', '请先选择 Vault')
+        return
+      }
+      autoSync.setVault(vaultHandle)
+      autoSync.setInterval(syncInterval)
+      autoSync.start()
+      setAutoSyncEnabled(true)
+      showToast('success', `已开启自动同步（每 ${syncInterval} 秒）`)
+    }
+  }
 
   const handleSelectVault = async () => {
     const handle = await selectVault()
@@ -98,6 +135,47 @@ export function SyncObsidian({ snippets, showToast }: Props) {
           </Button>
         </div>
       </div>
+
+      {/* 自动同步 */}
+      {vaultHandle && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-sm font-medium text-slate-900">自动同步</div>
+              <div className="text-xs text-slate-400">
+                {autoSyncEnabled
+                  ? `已开启，每 ${syncInterval} 秒扫描一次${lastSyncTime ? `，上次：${lastSyncTime}` : ''}`
+                  : '开启后自动检测 Obsidian 文件变更'}
+              </div>
+            </div>
+            <button
+              onClick={toggleAutoSync}
+              className={`relative w-11 h-6 rounded-full transition-colors ${
+                autoSyncEnabled ? 'bg-emerald-500' : 'bg-slate-300'
+              }`}
+            >
+              <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                autoSyncEnabled ? 'translate-x-5' : 'translate-x-0.5'
+              }`} />
+            </button>
+          </div>
+          {!autoSyncEnabled && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">间隔：</span>
+              <select
+                className="rounded border border-slate-200 px-2 py-1 text-xs"
+                value={syncInterval}
+                onChange={(e) => setSyncInterval(Number(e.target.value))}
+              >
+                <option value={30}>30 秒</option>
+                <option value={60}>1 分钟</option>
+                <option value={180}>3 分钟</option>
+                <option value={300}>5 分钟</option>
+              </select>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 同步操作 */}
       {vaultHandle && (

@@ -272,3 +272,89 @@ export async function syncToObsidian(
   }
   return { success, failed }
 }
+
+// ── 自动同步管理器 ────────────────────────────────────
+
+type SyncListener = (result: SyncResult) => void
+
+class AutoSyncManager {
+  private timer: ReturnType<typeof setInterval> | null = null
+  private listeners: Set<SyncListener> = new Set()
+  private vaultHandle: FileSystemDirectoryHandle | null = null
+  private intervalMs: number = 60_000 // 默认 1 分钟
+  private isSyncing: boolean = false
+
+  /** 初始化：恢复 Vault 句柄 */
+  async init() {
+    this.vaultHandle = await getSavedVault()
+  }
+
+  /** 设置同步间隔（秒） */
+  setInterval(seconds: number) {
+    this.intervalMs = seconds * 1000
+    if (this.timer) {
+      this.stop()
+      this.start()
+    }
+  }
+
+  /** 启动自动同步 */
+  start() {
+    if (this.timer) return
+    if (!this.vaultHandle) return
+
+    // 立即执行一次
+    this.runSync()
+
+    // 定时执行
+    this.timer = setInterval(() => this.runSync(), this.intervalMs)
+  }
+
+  /** 停止自动同步 */
+  stop() {
+    if (this.timer) {
+      clearInterval(this.timer)
+      this.timer = null
+    }
+  }
+
+  /** 是否正在运行 */
+  get running(): boolean {
+    return this.timer !== null
+  }
+
+  /** 是否有 Vault */
+  get hasVault(): boolean {
+    return this.vaultHandle !== null
+  }
+
+  /** 更新 Vault 句柄 */
+  setVault(handle: FileSystemDirectoryHandle) {
+    this.vaultHandle = handle
+  }
+
+  /** 监听同步结果 */
+  onSync(listener: SyncListener) {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  /** 手动触发同步 */
+  async runSync(): Promise<SyncResult | null> {
+    if (this.isSyncing || !this.vaultHandle) return null
+    this.isSyncing = true
+
+    try {
+      const result = await syncFromObsidian(this.vaultHandle)
+      this.listeners.forEach((l) => l(result))
+      return result
+    } catch (err) {
+      console.error('[keji] 自动同步失败:', err)
+      return null
+    } finally {
+      this.isSyncing = false
+    }
+  }
+}
+
+export const autoSync = new AutoSyncManager()
