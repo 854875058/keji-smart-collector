@@ -108,6 +108,29 @@ export const storage = {
     await chrome.storage.local.set({ collectionModeActive: active })
   },
 
+  async getCollectionItems(): Promise<Snippet[]> {
+    const { collectionItems } = await chrome.storage.local.get('collectionItems')
+    return collectionItems || []
+  },
+
+  async setCollectionItems(items: Snippet[]): Promise<void> {
+    await chrome.storage.local.set({ collectionItems: items })
+  },
+
+  async addCollectionItem(item: Snippet): Promise<void> {
+    const items = await this.getCollectionItems()
+    await chrome.storage.local.set({ collectionItems: [...items, item] })
+  },
+
+  async removeCollectionItem(id: string): Promise<void> {
+    const items = await this.getCollectionItems()
+    await chrome.storage.local.set({ collectionItems: items.filter((i) => i.id !== id) })
+  },
+
+  async clearCollectionItems(): Promise<void> {
+    await chrome.storage.local.set({ collectionItems: [] })
+  },
+
   // ── 用户设置 ──────────────────────────────────────────
   async getRememberMe(): Promise<boolean> {
     const { rememberMe } = await chrome.storage.local.get('rememberMe')

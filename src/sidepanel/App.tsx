@@ -4,10 +4,11 @@ import type { Snippet } from '../lib/types'
 import { SnippetList } from './views/SnippetList'
 import { AgentView } from './views/Agent'
 import { SyncObsidian } from './views/SyncObsidian'
+import { CollectionMode } from './views/CollectionMode'
 import { Button } from './components/ui/button'
-import { Search, FolderOpen, Sparkles, Home, Settings, FolderSync } from 'lucide-react'
+import { Search, FolderOpen, Sparkles, Home, Settings, FolderSync, Inbox } from 'lucide-react'
 
-type View = 'home' | 'snippets' | 'agent' | 'sync'
+type View = 'home' | 'snippets' | 'agent' | 'sync' | 'collection'
 
 export default function App() {
   const [view, setView] = useState<View>('home')
@@ -97,6 +98,15 @@ export default function App() {
           笔记
         </button>
         <button
+          onClick={() => setView('collection')}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            view === 'collection' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Inbox className="h-4 w-4" />
+          收集
+        </button>
+        <button
           onClick={() => setView('agent')}
           className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
             view === 'agent' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-100'
@@ -144,6 +154,9 @@ export default function App() {
             showToast={showToast}
           />
         )}
+        {view === 'collection' && (
+          <CollectionMode showToast={showToast} />
+        )}
         {view === 'agent' && <AgentView snippets={snippets} folders={folders} />}
         {view === 'sync' && (
           <SyncObsidian
@@ -187,6 +200,10 @@ function HomeView({
         <Button className="w-full" onClick={() => onNavigate('snippets')}>
           <FolderOpen className="mr-2 h-4 w-4" />
           查看笔记
+        </Button>
+        <Button className="w-full" variant="outline" onClick={() => onNavigate('collection')}>
+          <Inbox className="mr-2 h-4 w-4" />
+          收集箱
         </Button>
         <Button className="w-full" variant="outline" onClick={() => onNavigate('sync')}>
           <FolderSync className="mr-2 h-4 w-4" />
