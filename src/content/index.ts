@@ -122,22 +122,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // ── 初始化 ──────────────────────────────────────────
 
-console.log(`[keji] Running on ${platformName}`)
+try {
+  console.log(`[keji] Running on ${platformName}`)
 
-// 注入划词 tooltip
-initTooltipListener()
+  // 注入划词 tooltip
+  initTooltipListener()
+  console.log('[keji] Tooltip listener initialized')
 
-// 根据平台注入保存按钮
-const adapter = getPlatformAdapter()
-if (adapter) {
-  const selectors: Record<string, string> = {
-    ChatGPT: 'div[data-message-author-role="assistant"]',
-    Claude: '.font-claude-message',
-    Gemini: 'message-content',
-    Grok: '[data-message-author-role="assistant"], [data-role="assistant"], [data-author="assistant"], [data-testid="assistant-message"], [data-testid="chat-message"][data-author="assistant"]',
+  // 根据平台注入保存按钮
+  const adapter = getPlatformAdapter()
+  if (adapter) {
+    const selectors: Record<string, string> = {
+      ChatGPT: 'div[data-message-author-role="assistant"]',
+      Claude: '.font-claude-message',
+      Gemini: 'message-content',
+      Grok: '[data-message-author-role="assistant"], [data-role="assistant"], [data-author="assistant"], [data-testid="assistant-message"], [data-testid="chat-message"][data-author="assistant"]',
+    }
+    const selector = selectors[platformName]
+    if (selector) {
+      observeAndInject(selector)
+      console.log('[keji] Save buttons injected for', platformName)
+    }
   }
-  const selector = selectors[platformName]
-  if (selector) {
-    observeAndInject(selector)
-  }
+} catch (err) {
+  console.error('[keji] Initialization error:', err)
 }
