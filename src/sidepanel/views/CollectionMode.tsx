@@ -123,12 +123,12 @@ export function CollectionMode({ showToast }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* 顶部控制栏 */}
-      <div className="p-3 border-b border-slate-200 bg-white space-y-3">
+      <div className="p-3 border-b border-slate-200 bg-white space-y-3 dark:border-slate-700 dark:bg-slate-800">
         {/* 收集模式开关 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Inbox className="h-4 w-4 text-slate-600" />
-            <span className="text-sm font-medium text-slate-900">收集箱模式</span>
+            <Inbox className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+            <span className="text-sm font-medium text-slate-900 dark:text-slate-100">收集箱模式</span>
           </div>
           <button
             onClick={toggleMode}
@@ -145,7 +145,7 @@ export function CollectionMode({ showToast }: Props) {
         </div>
 
         {modeActive && (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             收集模式已开启，在 AI 页面划词或点击保存按钮时，内容将存入收集箱而非直接保存。
           </p>
         )}
@@ -200,7 +200,7 @@ export function CollectionMode({ showToast }: Props) {
       {/* 收集列表 */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {items.length === 0 ? (
-          <div className="text-center py-12 text-slate-400 text-sm">
+          <div className="text-center py-12 text-slate-400 text-sm dark:text-slate-500">
             <Inbox className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p>收集箱为空</p>
             <p className="text-xs mt-1">开启收集模式后，在 AI 页面保存的内容将进入此处</p>
@@ -209,7 +209,7 @@ export function CollectionMode({ showToast }: Props) {
           items.map((item, idx) => (
             <div
               key={item.id}
-              className="rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-300 transition-all"
+              className="rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-300 transition-all dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
@@ -217,36 +217,36 @@ export function CollectionMode({ showToast }: Props) {
                     <span className="shrink-0 w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 text-xs flex items-center justify-center font-medium">
                       {idx + 1}
                     </span>
-                    <div className="font-semibold text-sm text-slate-900 truncate">
+                    <div className="font-semibold text-sm text-slate-900 truncate dark:text-slate-100">
                       {item.title}
                     </div>
                   </div>
-                  <div className="text-xs text-slate-500 mt-1 truncate pl-7">
+                  <div className="text-xs text-slate-500 mt-1 truncate pl-7 dark:text-slate-400">
                     Q: {item.question}
                   </div>
                 </div>
                 <button
                   onClick={() => removeItem(item.id)}
-                  className="shrink-0 p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-500"
+                  className="shrink-0 p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 dark:hover:bg-red-900/30"
                   title="移除"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="text-xs text-slate-600 mt-2 line-clamp-2 pl-7">
+              <div className="text-xs text-slate-600 mt-2 line-clamp-2 pl-7 dark:text-slate-400">
                 {item.answer.slice(0, 120)}
               </div>
 
               <div className="flex items-center justify-between mt-3 pl-7">
-                <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500">
                   <span>{item.source}</span>
                   <span>{formatDate(item.timestamp)}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => saveItemAsSnippet(item)}
-                    className="p-1 rounded hover:bg-emerald-50 text-slate-400 hover:text-emerald-600"
+                    className="p-1 rounded hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 dark:hover:bg-emerald-900/30"
                     title="单独保存此条"
                   >
                     <Save className="h-3.5 w-3.5" />
@@ -254,7 +254,7 @@ export function CollectionMode({ showToast }: Props) {
                   {item.url && (
                     <button
                       onClick={() => window.open(item.url)}
-                      className="p-1 rounded hover:bg-slate-100 text-slate-400"
+                      className="p-1 rounded hover:bg-slate-100 text-slate-400 dark:hover:bg-slate-700"
                       title="打开原网页"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />

@@ -169,7 +169,7 @@ export function SnippetList({
   return (
     <div className="flex flex-col h-full">
       {/* 搜索栏 */}
-      <div className="p-3 border-b border-slate-200 bg-white">
+      <div className="p-3 border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
@@ -182,7 +182,7 @@ export function SnippetList({
           <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
             <button
               onClick={() => setShowScopeDropdown(!showScopeDropdown)}
-              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 px-1.5 py-1 rounded hover:bg-slate-100 transition-colors"
+              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 px-1.5 py-1 rounded hover:bg-slate-100 transition-colors dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700"
             >
               <Filter className="h-3 w-3" />
               {SCOPE_LABELS[searchScope]}
@@ -190,12 +190,12 @@ export function SnippetList({
             {showScopeDropdown && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowScopeDropdown(false)} />
-                <div className="absolute top-full right-0 mt-1 z-20 bg-white rounded-lg border border-slate-200 shadow-lg py-1 min-w-[80px]">
+                <div className="absolute top-full right-0 mt-1 z-20 bg-white rounded-lg border border-slate-200 shadow-lg py-1 min-w-[80px] dark:bg-slate-800 dark:border-slate-700">
                   {(Object.entries(SCOPE_LABELS) as [SearchScope, string][]).map(([key, label]) => (
                     <button
                       key={key}
-                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 ${
-                        searchScope === key ? 'text-emerald-600 font-medium' : 'text-slate-700'
+                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 ${
+                        searchScope === key ? 'text-emerald-600 font-medium' : 'text-slate-700 dark:text-slate-300'
                       }`}
                       onClick={() => { onSearchScopeChange(key); setShowScopeDropdown(false) }}
                     >
@@ -216,12 +216,12 @@ export function SnippetList({
       </div>
 
       {/* 排序 + 全选 */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 bg-white">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800">
         {/* 排序下拉 */}
         <div className="relative">
           <button
             onClick={() => setShowSortDropdown(!showSortDropdown)}
-            className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 px-2 py-1 rounded hover:bg-slate-100 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 px-2 py-1 rounded hover:bg-slate-100 transition-colors dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700"
           >
             <ArrowUpDown className="h-3.5 w-3.5" />
             {SORT_LABELS[sortOption]}
@@ -230,12 +230,12 @@ export function SnippetList({
           {showSortDropdown && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowSortDropdown(false)} />
-              <div className="absolute top-full left-0 mt-1 z-20 bg-white rounded-lg border border-slate-200 shadow-lg py-1 min-w-[120px]">
+              <div className="absolute top-full left-0 mt-1 z-20 bg-white rounded-lg border border-slate-200 shadow-lg py-1 min-w-[120px] dark:bg-slate-800 dark:border-slate-700">
                 {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(([key, label]) => (
                   <button
                     key={key}
-                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 ${
-                      sortOption === key ? 'text-emerald-600 font-medium' : 'text-slate-700'
+                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 ${
+                      sortOption === key ? 'text-emerald-600 font-medium' : 'text-slate-700 dark:text-slate-300'
                     }`}
                     onClick={() => { setSortOption(key); setShowSortDropdown(false) }}
                   >
@@ -251,7 +251,7 @@ export function SnippetList({
         {sortedSnippets.length > 0 && (
           <button
             onClick={toggleSelectAll}
-            className="flex items-center gap-1 text-xs text-slate-600 hover:text-slate-900 px-2 py-1 rounded hover:bg-slate-100 transition-colors"
+            className="flex items-center gap-1 text-xs text-slate-600 hover:text-slate-900 px-2 py-1 rounded hover:bg-slate-100 transition-colors dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700"
           >
             {allSelected ? (
               <CheckSquare className="h-3.5 w-3.5 text-emerald-600" />
@@ -267,7 +267,7 @@ export function SnippetList({
 
       {/* 批量操作栏 */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-200 bg-emerald-50">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-200 bg-emerald-50 dark:border-slate-700 dark:bg-emerald-900/30">
           <span className="text-xs text-emerald-700 font-medium">
             已选 {selectedIds.size} 项
           </span>
@@ -285,9 +285,9 @@ export function SnippetList({
             {showBatchMoveMenu && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowBatchMoveMenu(false)} />
-                <div className="absolute top-full right-0 mt-1 z-20 bg-white rounded-lg border border-slate-200 shadow-lg py-1 min-w-[140px]">
+                <div className="absolute top-full right-0 mt-1 z-20 bg-white rounded-lg border border-slate-200 shadow-lg py-1 min-w-[140px] dark:bg-slate-800 dark:border-slate-700">
                   <button
-                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 text-slate-700"
+                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 text-slate-700 dark:hover:bg-slate-700 dark:text-slate-300"
                     onClick={() => handleBatchMove(null)}
                   >
                     移出文件夹
@@ -295,7 +295,7 @@ export function SnippetList({
                   {folders.map((f) => (
                     <button
                       key={f}
-                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 text-slate-700"
+                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 text-slate-700 dark:hover:bg-slate-700 dark:text-slate-300"
                       onClick={() => handleBatchMove(f)}
                     >
                       <FolderOpen className="h-3 w-3 inline-block mr-1" />
@@ -314,13 +314,13 @@ export function SnippetList({
       )}
 
       {/* 文件夹标签 */}
-      <div className="flex gap-1 px-3 py-2 overflow-x-auto border-b border-slate-100 bg-white">
+      <div className="flex gap-1 px-3 py-2 overflow-x-auto border-b border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800">
         <button
           onClick={() => onFolderChange('')}
           className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
             !activeFolder
-              ? 'bg-emerald-100 text-emerald-700'
-              : 'text-slate-500 hover:bg-slate-100'
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400'
+              : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
           }`}
         >
           全部
@@ -331,8 +331,8 @@ export function SnippetList({
             onClick={() => onFolderChange(f)}
             className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
               activeFolder === f
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'text-slate-500 hover:bg-slate-100'
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400'
+                : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
             }`}
           >
             {f}
@@ -352,8 +352,8 @@ export function SnippetList({
             return (
               <div
                 key={snippet.id}
-                className={`rounded-xl border bg-white p-3 hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer ${
-                  isSelected ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-200'
+                className={`rounded-xl border bg-white p-3 hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer dark:hover:border-slate-600 ${
+                  isSelected ? 'border-emerald-300 bg-emerald-50/30 dark:border-emerald-600 dark:bg-emerald-900/20' : 'border-slate-200 dark:border-slate-700 dark:bg-slate-800'
                 }`}
               >
                 <div className="flex items-start gap-2">
@@ -375,7 +375,7 @@ export function SnippetList({
                     onClick={() => setDetailId(snippet.id)}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="font-semibold text-sm text-slate-900 truncate"
+                      <div className="font-semibold text-sm text-slate-900 truncate dark:text-slate-100"
                         dangerouslySetInnerHTML={{ __html: highlightText(snippet.title, searchQuery) }}
                       />
                       <button
@@ -391,13 +391,13 @@ export function SnippetList({
                         />
                       </button>
                     </div>
-                    <div className="text-xs text-slate-500 mt-1 truncate"
+                    <div className="text-xs text-slate-500 mt-1 truncate dark:text-slate-400"
                       dangerouslySetInnerHTML={{ __html: `Q: ${highlightText(snippet.question, searchQuery)}` }}
                     />
                   </div>
                 </div>
 
-                <div className="text-xs text-slate-600 mt-2 line-clamp-2 pl-6" onClick={() => setDetailId(snippet.id)}
+                <div className="text-xs text-slate-600 mt-2 line-clamp-2 pl-6 dark:text-slate-400" onClick={() => setDetailId(snippet.id)}
                   dangerouslySetInnerHTML={{ __html: highlightText(snippet.answer.slice(0, 120), searchQuery) }}
                 />
 
@@ -416,7 +416,7 @@ export function SnippetList({
                 )}
 
                 <div className="flex items-center justify-between mt-3 pl-6">
-                  <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                  <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500">
                     <span>{snippet.source}</span>
                     {snippet.folder && (
                       <span className="flex items-center gap-0.5">
@@ -428,7 +428,7 @@ export function SnippetList({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={(e) => handleCopy(snippet, e)}
-                      className="p-1 rounded hover:bg-slate-100 text-slate-400"
+                      className="p-1 rounded hover:bg-slate-100 text-slate-400 dark:hover:bg-slate-700"
                       title="复制"
                     >
                       <Copy className="h-3.5 w-3.5" />
@@ -436,7 +436,7 @@ export function SnippetList({
                     {snippet.url && (
                       <button
                         onClick={(e) => { e.stopPropagation(); window.open(snippet.url) }}
-                        className="p-1 rounded hover:bg-slate-100 text-slate-400"
+                        className="p-1 rounded hover:bg-slate-100 text-slate-400 dark:hover:bg-slate-700"
                         title="打开原网页"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
@@ -444,7 +444,7 @@ export function SnippetList({
                     )}
                     <button
                       onClick={(e) => { e.stopPropagation(); onDelete(snippet.id) }}
-                      className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-500"
+                      className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 dark:hover:bg-red-900/30"
                       title="删除"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -518,23 +518,23 @@ function NoteDetailInline({
   }, [snippet.answer, showToast])
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-800">
       {/* 顶栏 */}
-      <div className="flex items-center gap-2 p-3 border-b border-slate-200">
+      <div className="flex items-center gap-2 p-3 border-b border-slate-200 dark:border-slate-700">
         <button
           onClick={onBack}
-          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600"
+          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 dark:hover:bg-slate-700 dark:text-slate-400"
           title="返回列表"
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="flex-1 min-w-0">
-          <div className="text-xs text-slate-400">{snippet.source}</div>
-          <div className="text-sm font-semibold text-slate-900 truncate">{snippet.title}</div>
+          <div className="text-xs text-slate-400 dark:text-slate-500">{snippet.source}</div>
+          <div className="text-sm font-semibold text-slate-900 truncate dark:text-slate-100">{snippet.title}</div>
         </div>
         <button
           onClick={() => onToggleFavourite(snippet.id)}
-          className="p-1.5 rounded-lg hover:bg-slate-100"
+          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
         >
           <Star
             className={`h-4 w-4 ${
@@ -545,7 +545,7 @@ function NoteDetailInline({
       </div>
 
       {/* 操作按钮 */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-700">
         <Button size="sm" variant="ghost" onClick={handleCopy}>
           <Copy className="h-3.5 w-3.5 mr-1" />
           复制
@@ -567,9 +567,9 @@ function NoteDetailInline({
           {showMoveMenu && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowMoveMenu(false)} />
-              <div className="absolute top-full left-0 mt-1 z-20 bg-white rounded-lg border border-slate-200 shadow-lg py-1 min-w-[140px]">
+              <div className="absolute top-full left-0 mt-1 z-20 bg-white rounded-lg border border-slate-200 shadow-lg py-1 min-w-[140px] dark:bg-slate-800 dark:border-slate-700">
                 <button
-                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 text-slate-700"
+                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 text-slate-700 dark:hover:bg-slate-700 dark:text-slate-300"
                   onClick={() => handleMoveToFolder(null)}
                 >
                   未归类
@@ -577,8 +577,8 @@ function NoteDetailInline({
                 {folders.map((f) => (
                   <button
                     key={f}
-                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 ${
-                      snippet.folder === f ? 'text-emerald-600 font-medium' : 'text-slate-700'
+                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 ${
+                      snippet.folder === f ? 'text-emerald-600 font-medium' : 'text-slate-700 dark:text-slate-300'
                     }`}
                     onClick={() => handleMoveToFolder(f)}
                   >
@@ -601,10 +601,10 @@ function NoteDetailInline({
       </div>
 
       {/* 标签编辑 */}
-      <div className="px-3 py-3 border-b border-slate-100">
+      <div className="px-3 py-3 border-b border-slate-100 dark:border-slate-700">
         <div className="flex items-center gap-1.5 mb-2">
-          <Tag className="h-3.5 w-3.5 text-slate-500" />
-          <span className="text-xs font-medium text-slate-700">标签</span>
+          <Tag className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+          <span className="text-xs font-medium text-slate-700 dark:text-slate-300">标签</span>
         </div>
         <div className="flex flex-wrap gap-1.5 mb-2">
           {tags.map((t) => (
@@ -646,20 +646,20 @@ function NoteDetailInline({
 
       {/* 问题 */}
       <div className="px-3 py-2">
-        <div className="text-xs text-slate-400 mb-1">问题</div>
-        <div className="text-sm text-slate-700">{snippet.question}</div>
+        <div className="text-xs text-slate-400 mb-1 dark:text-slate-500">问题</div>
+        <div className="text-sm text-slate-700 dark:text-slate-300">{snippet.question}</div>
       </div>
 
       {/* 内容 */}
       <div className="flex-1 overflow-y-auto px-3 py-2">
-        <div className="text-xs text-slate-400 mb-1">回答</div>
-        <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
+        <div className="text-xs text-slate-400 mb-1 dark:text-slate-500">回答</div>
+        <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed dark:text-slate-200">
           {snippet.answer}
         </div>
       </div>
 
       {/* 底部信息 */}
-      <div className="px-3 py-2 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between">
+      <div className="px-3 py-2 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between dark:border-slate-700 dark:text-slate-500">
         <span>{formatDate(snippet.timestamp)}</span>
         {snippet.url && (
           <a

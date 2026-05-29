@@ -46,7 +46,7 @@ export function RichTextEditor({
     content: initialHtml,
     editorProps: {
       attributes: {
-        class: `prose prose-sm max-w-none focus:outline-none ${minHeightClassName} px-4 py-3`,
+        class: `prose prose-sm max-w-none focus:outline-none dark:prose-invert ${minHeightClassName} px-4 py-3`,
       },
     },
     onUpdate: ({ editor }) => {
@@ -104,7 +104,7 @@ export function RichTextEditor({
   if (!editor) return null
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white dark:border-slate-700 dark:bg-slate-800">
       {/* 图片大小提示 */}
       {imageToast && (
         <div className="px-3 py-1.5 text-xs text-amber-700 bg-amber-50 border-b border-amber-200">
@@ -126,7 +126,7 @@ export function RichTextEditor({
       />
 
       {/* 工具栏 */}
-      <div className={`sticky ${toolbarStickyTopClassName} z-20 flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-slate-200 bg-white/95 backdrop-blur`}>
+      <div className={`sticky ${toolbarStickyTopClassName} z-20 flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-700 dark:bg-slate-800/95`}>
         <ToolbarBtn
           icon={<Bold className="h-4 w-4" />}
           active={editor.isActive('bold')}
@@ -152,7 +152,7 @@ export function RichTextEditor({
           title="删除线"
         />
 
-        <div className="w-px h-5 bg-slate-200 mx-1" />
+        <div className="w-px h-5 bg-slate-200 mx-1 dark:bg-slate-600" />
 
         <ToolbarBtn
           icon={<Heading1 className="h-4 w-4" />}
@@ -173,7 +173,7 @@ export function RichTextEditor({
           title="标题 3"
         />
 
-        <div className="w-px h-5 bg-slate-200 mx-1" />
+        <div className="w-px h-5 bg-slate-200 mx-1 dark:bg-slate-600" />
 
         <ToolbarBtn
           icon={<List className="h-4 w-4" />}
@@ -200,7 +200,7 @@ export function RichTextEditor({
           title="代码块"
         />
 
-        <div className="w-px h-5 bg-slate-200 mx-1" />
+        <div className="w-px h-5 bg-slate-200 mx-1 dark:bg-slate-600" />
 
         <ToolbarBtn
           icon={<AlignLeft className="h-4 w-4" />}
@@ -221,7 +221,7 @@ export function RichTextEditor({
           title="右对齐"
         />
 
-        <div className="w-px h-5 bg-slate-200 mx-1" />
+        <div className="w-px h-5 bg-slate-200 mx-1 dark:bg-slate-600" />
 
         <ToolbarBtn
           icon={<Highlighter className="h-4 w-4" />}
@@ -244,7 +244,7 @@ export function RichTextEditor({
           title="插入图片（本地上传或输入URL）"
         />
 
-        <div className="w-px h-5 bg-slate-200 mx-1" />
+        <div className="w-px h-5 bg-slate-200 mx-1 dark:bg-slate-600" />
 
         <ToolbarBtn
           icon={<RemoveFormatting className="h-4 w-4" />}
@@ -290,8 +290,8 @@ function ToolbarBtn({
       onClick={onClick}
       className={`p-1.5 rounded-md transition-colors ${
         active
-          ? 'bg-emerald-100 text-emerald-700'
-          : 'text-slate-600 hover:bg-slate-100'
+          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400'
+          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
       } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
     >
       {icon}

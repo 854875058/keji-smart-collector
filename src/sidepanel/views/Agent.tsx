@@ -90,8 +90,8 @@ export function AgentView({ snippets, folders }: Props) {
         {messages.length === 0 && (
           <div className="text-center py-12">
             <Sparkles className="h-8 w-8 mx-auto text-emerald-500 mb-3" />
-            <h3 className="font-semibold text-slate-900">AI 助手</h3>
-            <p className="text-sm text-slate-500 mt-1">
+            <h3 className="font-semibold text-slate-900 dark:text-slate-100">AI 助手</h3>
+            <p className="text-sm text-slate-500 mt-1 dark:text-slate-400">
               基于你的收藏笔记，回答问题、整理内容
             </p>
             <div className="mt-4 space-y-2 text-left max-w-sm mx-auto">
@@ -103,7 +103,7 @@ export function AgentView({ snippets, folders }: Props) {
                 <button
                   key={q}
                   onClick={() => setInput(q)}
-                  className="w-full text-left text-xs rounded-lg border border-slate-200 px-3 py-2 hover:bg-emerald-50 hover:border-emerald-200 transition-colors"
+                  className="w-full text-left text-xs rounded-lg border border-slate-200 px-3 py-2 hover:bg-emerald-50 hover:border-emerald-200 transition-colors dark:border-slate-700 dark:hover:bg-emerald-900/30 dark:hover:border-emerald-600"
                 >
                   {q}
                 </button>
@@ -121,7 +121,7 @@ export function AgentView({ snippets, folders }: Props) {
               className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
                 msg.role === 'user'
                   ? 'bg-emerald-600 text-white'
-                  : 'bg-white border border-slate-200 text-slate-800'
+                  : 'bg-white border border-slate-200 text-slate-800 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200'
               }`}
             >
               <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -131,7 +131,7 @@ export function AgentView({ snippets, folders }: Props) {
 
         {isLoading && (
           <div className="flex justify-start">
-            <div className="rounded-2xl px-4 py-2.5 bg-white border border-slate-200">
+            <div className="rounded-2xl px-4 py-2.5 bg-white border border-slate-200 dark:bg-slate-700 dark:border-slate-600">
               <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
             </div>
           </div>
@@ -141,7 +141,7 @@ export function AgentView({ snippets, folders }: Props) {
       </div>
 
       {/* 输入栏 */}
-      <div className="border-t border-slate-200 bg-white p-3">
+      <div className="border-t border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
         <div className="flex gap-2">
           <Input
             value={input}
@@ -213,15 +213,15 @@ function AgentSettings({
 
   return (
     <div className="p-6 space-y-4">
-      <h3 className="font-semibold text-slate-900">AI 助手设置</h3>
-      <p className="text-xs text-slate-500">
+      <h3 className="font-semibold text-slate-900 dark:text-slate-100">AI 助手设置</h3>
+      <p className="text-xs text-slate-500 dark:text-slate-400">
         支持所有 OpenAI 兼容格式的 API，数据不会上传到我们的服务器
       </p>
 
       <div className="space-y-3">
         {/* 快捷预设 */}
         <div>
-          <label className="text-xs text-slate-600 mb-1 block">快捷预设</label>
+          <label className="text-xs text-slate-600 mb-1 block dark:text-slate-400">快捷预设</label>
           <div className="grid grid-cols-2 gap-1.5">
             {AI_PRESETS.map((p) => (
               <button
@@ -229,8 +229,8 @@ function AgentSettings({
                 onClick={() => handlePresetChange(p.id)}
                 className={`text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
                   presetId === p.id
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    : 'border border-slate-200 hover:bg-slate-50'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-600'
+                    : 'border border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700'
                 }`}
               >
                 {p.name}
@@ -241,33 +241,33 @@ function AgentSettings({
 
         {/* Base URL */}
         <div>
-          <label className="text-xs text-slate-600 mb-1 block">API Base URL</label>
+          <label className="text-xs text-slate-600 mb-1 block dark:text-slate-400">API Base URL</label>
           <Input
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
             placeholder="https://api.openai.com/v1"
           />
-          <p className="text-[10px] text-slate-400 mt-0.5">
+          <p className="text-[10px] text-slate-400 mt-0.5 dark:text-slate-500">
             兼容 OpenAI 格式的 API 地址，末尾不需要加 /chat/completions
           </p>
         </div>
 
         {/* 模型名称 */}
         <div>
-          <label className="text-xs text-slate-600 mb-1 block">模型名称</label>
+          <label className="text-xs text-slate-600 mb-1 block dark:text-slate-400">模型名称</label>
           <Input
             value={model}
             onChange={(e) => setModel(e.target.value)}
             placeholder="gpt-4o-mini"
           />
-          <p className="text-[10px] text-slate-400 mt-0.5">
+          <p className="text-[10px] text-slate-400 mt-0.5 dark:text-slate-500">
             直接输入模型名称，如 gpt-4o、deepseek-chat、claude-sonnet-4-20250514
           </p>
         </div>
 
         {/* API Key */}
         <div>
-          <label className="text-xs text-slate-600 mb-1 block">API Key</label>
+          <label className="text-xs text-slate-600 mb-1 block dark:text-slate-400">API Key</label>
           <Input
             type="password"
             value={apiKey}

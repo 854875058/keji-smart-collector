@@ -113,20 +113,20 @@ export function SyncObsidian({ snippets, showToast }: Props) {
 
   return (
     <div className="p-6 space-y-4 max-w-lg mx-auto">
-      <h3 className="text-lg font-semibold text-slate-900">Obsidian 同步</h3>
-      <p className="text-sm text-slate-500">
+      <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Obsidian 同步</h3>
+      <p className="text-sm text-slate-500 dark:text-slate-400">
         与本地 Obsidian Vault 双向同步笔记
       </p>
 
       {/* Vault 选择 */}
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
         <div className="flex items-center gap-3">
-          <HardDrive className="h-5 w-5 text-slate-400" />
+          <HardDrive className="h-5 w-5 text-slate-400 dark:text-slate-500" />
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-slate-900">
+            <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
               {vaultName || '未选择 Vault'}
             </div>
-            <div className="text-xs text-slate-400">
+            <div className="text-xs text-slate-400 dark:text-slate-500">
               {vaultHandle ? '已连接，可进行同步' : '点击右侧按钮选择 Obsidian Vault 文件夹'}
             </div>
           </div>
@@ -138,11 +138,11 @@ export function SyncObsidian({ snippets, showToast }: Props) {
 
       {/* 自动同步 */}
       {vaultHandle && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <div className="text-sm font-medium text-slate-900">自动同步</div>
-              <div className="text-xs text-slate-400">
+              <div className="text-sm font-medium text-slate-900 dark:text-slate-100">自动同步</div>
+              <div className="text-xs text-slate-400 dark:text-slate-500">
                 {autoSyncEnabled
                   ? `已开启，每 ${syncInterval} 秒扫描一次${lastSyncTime ? `，上次：${lastSyncTime}` : ''}`
                   : '开启后自动检测 Obsidian 文件变更'}
@@ -161,9 +161,9 @@ export function SyncObsidian({ snippets, showToast }: Props) {
           </div>
           {!autoSyncEnabled && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500">间隔：</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">间隔：</span>
               <select
-                className="rounded border border-slate-200 px-2 py-1 text-xs"
+                className="rounded border border-slate-200 px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                 value={syncInterval}
                 onChange={(e) => setSyncInterval(Number(e.target.value))}
               >
@@ -181,14 +181,14 @@ export function SyncObsidian({ snippets, showToast }: Props) {
       {vaultHandle && (
         <div className="space-y-3">
           {/* 从 Obsidian 拉取 */}
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
             <div className="flex items-center justify-between">
               <div>
-                <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                <div className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
                   <Download className="h-4 w-4 text-emerald-600" />
                   从 Obsidian 拉取
                 </div>
-                <div className="text-xs text-slate-400 mt-0.5">
+                <div className="text-xs text-slate-400 mt-0.5 dark:text-slate-500">
                   扫描 Vault，将新增和修改的笔记同步到可记
                 </div>
               </div>
@@ -208,14 +208,14 @@ export function SyncObsidian({ snippets, showToast }: Props) {
           </div>
 
           {/* 推送到 Obsidian */}
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
             <div className="flex items-center justify-between">
               <div>
-                <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
+                <div className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
                   <Upload className="h-4 w-4 text-blue-600" />
                   推送到 Obsidian
                 </div>
-                <div className="text-xs text-slate-400 mt-0.5">
+                <div className="text-xs text-slate-400 mt-0.5 dark:text-slate-500">
                   将可记的 {snippets.length} 条笔记写入 Vault
                 </div>
               </div>
@@ -268,7 +268,7 @@ export function SyncObsidian({ snippets, showToast }: Props) {
 
       {/* 提示 */}
       {!vaultHandle && (
-        <div className="text-center py-6 text-slate-400">
+        <div className="text-center py-6 text-slate-400 dark:text-slate-500">
           <FolderSync className="h-10 w-10 mx-auto mb-2 opacity-50" />
           <p className="text-sm">选择 Obsidian Vault 后即可开始同步</p>
         </div>
