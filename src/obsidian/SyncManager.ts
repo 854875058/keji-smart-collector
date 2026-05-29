@@ -14,12 +14,8 @@ function parseMarkdownFile(
   const id = `obsidian-${simpleHash(filePath)}`
   const title = meta.title || filename.replace(/\.md$/, '')
 
-  let question = ''
-  let answer = body
-  const qMatch = body.match(/##\s*问题\s*\n([\s\S]*?)(?=\n##|$)/)
-  const aMatch = body.match(/##\s*回答\s*\n([\s\S]*?)(?=\n##|$)/)
-  if (qMatch) question = qMatch[1].trim()
-  if (aMatch) answer = aMatch[1].trim()
+  const question = meta.question || meta.description || ''
+  const answer = body
 
   let tags: string[] = []
   if (Array.isArray(meta.tags)) tags = meta.tags
@@ -29,7 +25,7 @@ function parseMarkdownFile(
 
   return {
     id, title,
-    question: question || 'Obsidian 导入',
+    question: question || '',
     answer,
     contentHtml: '',
     source: meta.source || 'Obsidian',
@@ -127,17 +123,16 @@ async function writeSnippetToFile(
 function generateMarkdown(s: Snippet): string {
   const lines: string[] = ['---']
   lines.push(`title: "${(s.title || '').replace(/"/g, '\\"')}"`)
-  lines.push(`source: ${s.source || 'Unknown'}`)
-  lines.push(`url: "${s.url || ''}"`)
-  lines.push(`created: ${s.timestamp || ''}`)
+  if (s.source) lines.push(`source: ${s.source}`)
+  if (s.url) lines.push(`url: "${s.url}"`)
+  if (s.timestamp) lines.push(`created: ${s.timestamp}`)
   if (s.tags && s.tags.length) lines.push(`tags: [${s.tags.map(t => `"${t}"`).join(', ')}]`)
   if (s.folder) lines.push(`folder: "${s.folder}"`)
   lines.push(`keji_id: "${s.id}"`)
   if (s.isFavourite) lines.push('favourite: true')
+  if (s.question) lines.push(`question: "${(s.question || '').replace(/"/g, '\\"').replace(/\n/g, ' ')}"`)
   lines.push('---', '')
-  lines.push('## 问题', s.question || '', '')
-  lines.push('## 回答', s.answer || '', '')
-  lines.push('---', '*由可记智能收藏助手同步*')
+  lines.push(s.answer || '')
   return lines.join('\n')
 }
 
