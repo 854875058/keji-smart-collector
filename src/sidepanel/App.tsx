@@ -3,11 +3,11 @@ import { storage } from '../lib/storage'
 import type { Snippet } from '../lib/types'
 import { SnippetList } from './views/SnippetList'
 import { AgentView } from './views/Agent'
-import { ImportObsidian } from './views/ImportObsidian'
+import { SyncObsidian } from './views/SyncObsidian'
 import { Button } from './components/ui/button'
-import { Search, FolderOpen, Sparkles, Home, Settings, Download } from 'lucide-react'
+import { Search, FolderOpen, Sparkles, Home, Settings, FolderSync } from 'lucide-react'
 
-type View = 'home' | 'snippets' | 'agent' | 'import'
+type View = 'home' | 'snippets' | 'agent' | 'sync'
 
 export default function App() {
   const [view, setView] = useState<View>('home')
@@ -106,13 +106,13 @@ export default function App() {
           AI 助手
         </button>
         <button
-          onClick={() => setView('import')}
+          onClick={() => setView('sync')}
           className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-            view === 'import' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-100'
+            view === 'sync' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          <Download className="h-4 w-4" />
-          导入
+          <FolderSync className="h-4 w-4" />
+          同步
         </button>
       </nav>
 
@@ -145,9 +145,9 @@ export default function App() {
           />
         )}
         {view === 'agent' && <AgentView snippets={snippets} folders={folders} />}
-        {view === 'import' && (
-          <ImportObsidian
-            onImportComplete={() => setView('snippets')}
+        {view === 'sync' && (
+          <SyncObsidian
+            snippets={snippets}
             showToast={showToast}
           />
         )}
@@ -188,9 +188,9 @@ function HomeView({
           <FolderOpen className="mr-2 h-4 w-4" />
           查看笔记
         </Button>
-        <Button className="w-full" variant="outline" onClick={() => onNavigate('import')}>
-          <Download className="mr-2 h-4 w-4" />
-          从 Obsidian 导入
+        <Button className="w-full" variant="outline" onClick={() => onNavigate('sync')}>
+          <FolderSync className="mr-2 h-4 w-4" />
+          Obsidian 同步
         </Button>
         <Button className="w-full" variant="outline" onClick={() => onNavigate('agent')}>
           <Sparkles className="mr-2 h-4 w-4" />
