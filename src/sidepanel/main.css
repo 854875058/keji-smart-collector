@@ -1,1 +1,32 @@
 @import "tailwindcss";
+
+/* Tailwind v4: 使用 class 策略实现深色模式 */
+@variant dark (&:where(.dark, .dark *));
+
+/* CSS 变量：亮色模式 */
+:root {
+  --color-bg-page: #f8fafc;
+  --color-bg-card: #ffffff;
+  --color-bg-nav: #ffffff;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
+  --color-accent: #10b981;
+  --color-accent-light: #ecfdf5;
+}
+
+/* CSS 变量：深色模式 */
+.dark {
+  --color-bg-page: #0f172a;
+  --color-bg-card: #1e293b;
+  --color-bg-nav: #1e293b;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-border: #334155;
+  --color-border-light: #1e293b;
+  --color-accent: #34d399;
+  --color-accent-light: #064e3b;
+}

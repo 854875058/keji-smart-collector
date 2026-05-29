@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react'
+import React, { useEffect, useCallback, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -14,6 +14,8 @@ import {
   Undo, Redo, RemoveFormatting,
 } from 'lucide-react'
 
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024 // 2MB
+
 interface Props {
   initialHtml?: string
   onChange?: (data: { html: string; text: string }) => void
@@ -27,6 +29,9 @@ export function RichTextEditor({
   minHeightClassName = 'min-h-[400px]',
   toolbarStickyTopClassName = 'top-0',
 }: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [imageToast, setImageToast] = useState<string | null>(null)
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -58,10 +63,68 @@ export function RichTextEditor({
     }
   }, [initialHtml])
 
+  const insertImageFromFile = useCallback((file: File) => {
+    if (file.size > MAX_IMAGE_SIZE) {
+      setImageToast(`图片大小 ${(file.size / 1024 / 1024).toFixed(1)}MB 超过 2MB 限制`)
+      setTimeout(() => setImageToast(null), 3000)
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      editor?.chain().focus().setImage({ src: dataUrl }).run()
+    }
+    reader.readAsDataURL(file)
+  }, [editor])
+
+  const handlePaste = useCallback((event: React.ClipboardEvent) => {
+    const items = event.clipboardData?.items
+    if (!items) return
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (item.type.startsWith('image/')) {
+        event.preventDefault()
+        const file = item.getAsFile()
+        if (file) insertImageFromFile(file)
+        return
+      }
+    }
+  }, [insertImageFromFile])
+
+  const handleImageAction = useCallback(() => {
+    const choice = window.confirm('点击"确定"从本地上传图片，点击"取消"输入图片 URL')
+    if (choice) {
+      fileInputRef.current?.click()
+    } else {
+      const url = window.prompt('输入图片 URL:')
+      if (url) editor?.chain().focus().setImage({ src: url }).run()
+    }
+  }, [editor])
+
   if (!editor) return null
 
   return (
     <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+      {/* 图片大小提示 */}
+      {imageToast && (
+        <div className="px-3 py-1.5 text-xs text-amber-700 bg-amber-50 border-b border-amber-200">
+          {imageToast}
+        </div>
+      )}
+
+      {/* 隐藏的文件选择器 */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) insertImageFromFile(file)
+          e.target.value = ''
+        }}
+      />
+
       {/* 工具栏 */}
       <div className={`sticky ${toolbarStickyTopClassName} z-20 flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-slate-200 bg-white/95 backdrop-blur`}>
         <ToolbarBtn
@@ -177,11 +240,8 @@ export function RichTextEditor({
         />
         <ToolbarBtn
           icon={<ImageIcon className="h-4 w-4" />}
-          onClick={() => {
-            const url = window.prompt('输入图片 URL:')
-            if (url) editor.chain().focus().setImage({ src: url }).run()
-          }}
-          title="插入图片"
+          onClick={handleImageAction}
+          title="插入图片（本地上传或输入URL）"
         />
 
         <div className="w-px h-5 bg-slate-200 mx-1" />
@@ -206,7 +266,9 @@ export function RichTextEditor({
       </div>
 
       {/* 编辑区 */}
-      <EditorContent editor={editor} />
+      <div onPaste={handlePaste}>
+        <EditorContent editor={editor} />
+      </div>
     </div>
   )
 }

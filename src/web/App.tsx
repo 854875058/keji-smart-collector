@@ -10,10 +10,12 @@ import { RichTextEditor } from '../sidepanel/components/RichTextEditor'
 import {
   Search, FolderOpen, Star, Trash2, ExternalLink, Copy,
   Pencil, X, Save, FileText, Plus, ChevronDown, ChevronRight,
-  FolderPlus, MoreHorizontal,
+  FolderPlus, MoreHorizontal, Sun, Moon,
 } from 'lucide-react'
+import { useTheme } from '../lib/useTheme'
 
 export default function WebApp() {
+  const { theme, toggleTheme } = useTheme()
   const [snippets, setSnippets] = useState<Snippet[]>([])
   const [folders, setFolders] = useState<string[]>([])
   const [activeFolder, setActiveFolder] = useState('')
@@ -120,7 +122,7 @@ export default function WebApp() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#bbf7d0_0%,_#ecfdf5_35%,_#f8fafc_70%)] text-slate-900">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#bbf7d0_0%,_#ecfdf5_35%,_#f8fafc_70%)] dark:bg-[radial-gradient(circle_at_top,_#064e3b_0%,_#0f172a_35%,_#0f172a_70%)] text-slate-900 dark:text-slate-100">
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 rounded-full bg-emerald-600 text-white text-xs px-4 py-2 shadow-lg">
           {toast}
@@ -130,19 +132,28 @@ export default function WebApp() {
       <div className="mx-auto max-w-7xl p-6">
         <header className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <img src="app-icon.svg" alt="keji" className="w-14 h-14 rounded-2xl shadow-sm ring-1 ring-emerald-200/60 object-cover" />
+            <img src="app-icon.svg" alt="keji" className="w-14 h-14 rounded-2xl shadow-sm ring-1 ring-emerald-200/60 dark:ring-emerald-700/60 object-cover" />
             <div>
-              <div className="text-xs uppercase tracking-[0.3em] text-emerald-700">keji Web</div>
-              <h1 className="text-3xl font-semibold text-slate-900">可记空间</h1>
+              <div className="text-xs uppercase tracking-[0.3em] text-emerald-700 dark:text-emerald-400">keji Web</div>
+              <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-100">可记空间</h1>
             </div>
           </div>
-          <div className="text-sm text-slate-500">本地存储 · 可离线访问</div>
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-slate-500 dark:text-slate-400">本地存储 · 可离线访问</div>
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-colors"
+              title={theme === 'dark' ? '切换到亮色模式' : '切换到深色模式'}
+            >
+              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
+          </div>
         </header>
 
         <div className="grid grid-cols-[320px_minmax(0,1fr)] gap-6">
           {/* 侧边栏 */}
-          <aside className="bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-xl p-4 flex flex-col min-h-[70vh]">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white mb-4">
+          <aside className="bg-white/80 dark:bg-slate-800/80 backdrop-blur rounded-2xl border border-white/70 dark:border-slate-700/70 shadow-xl p-4 flex flex-col min-h-[70vh]">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 dark:bg-slate-700 text-white mb-4">
               <Search className="w-4 h-4" />
               <input
                 className="bg-transparent text-sm outline-none placeholder:text-white/60 flex-1"
@@ -168,15 +179,15 @@ export default function WebApp() {
 
             <div className="space-y-2 overflow-y-auto pr-1 mt-2 flex-1">
               {filtered.length === 0 && (
-                <div className="text-sm text-slate-500 py-8 text-center">暂无笔记</div>
+                <div className="text-sm text-slate-500 dark:text-slate-400 py-8 text-center">暂无笔记</div>
               )}
               {filtered.map((s) => (
                 <button
                   key={s.id}
                   className={`w-full text-left p-3 rounded-xl border transition-all duration-200 ${
                     selectedId === s.id
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-lg'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+                      ? 'bg-slate-900 dark:bg-emerald-700 text-white border-slate-900 dark:border-emerald-700 shadow-lg'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500'
                   } ${highlightId === s.id ? 'ring-2 ring-amber-400 shadow-[0_0_0_4px_rgba(251,191,36,0.18)]' : ''}`}
                   onClick={() => setSelectedId(s.id)}
                 >
@@ -195,9 +206,9 @@ export default function WebApp() {
           </aside>
 
           {/* 主内容区 */}
-          <section className="bg-white/90 backdrop-blur rounded-2xl border border-white/70 shadow-2xl p-6 min-h-[70vh]">
+          <section className="bg-white/90 dark:bg-slate-800/90 backdrop-blur rounded-2xl border border-white/70 dark:border-slate-700/70 shadow-2xl p-6 min-h-[70vh]">
             {!selected ? (
-              <div className="h-full flex items-center justify-center text-slate-500">
+              <div className="h-full flex items-center justify-center text-slate-500 dark:text-slate-400">
                 请选择左侧的笔记查看
               </div>
             ) : (
@@ -240,11 +251,11 @@ function FolderList({
   onCancelNewFolder: () => void
 }) {
   return (
-    <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
+    <div className="mb-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
       <div className="flex items-center justify-between mb-2">
-        <div className="text-xs font-semibold text-slate-600">笔记本目录</div>
+        <div className="text-xs font-semibold text-slate-600 dark:text-slate-400">笔记本目录</div>
         <button
-          className="text-[11px] text-emerald-600 hover:text-emerald-700 hover:underline"
+          className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:underline"
           onClick={onCreateFolder}
         >
           + 新建
@@ -255,7 +266,7 @@ function FolderList({
       {showNewFolder && (
         <div className="flex gap-1 mb-2">
           <input
-            className="flex-1 rounded border border-slate-200 px-2 py-1 text-xs"
+            className="flex-1 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 px-2 py-1 text-xs"
             placeholder="文件夹名称..."
             value={newFolderName}
             onChange={(e) => onNewFolderNameChange(e.target.value)}
@@ -265,7 +276,7 @@ function FolderList({
           <button className="px-2 py-1 rounded text-xs bg-emerald-600 text-white" onClick={onCreateFolderConfirm}>
             确定
           </button>
-          <button className="px-2 py-1 rounded text-xs text-slate-500 hover:bg-slate-100" onClick={onCancelNewFolder}>
+          <button className="px-2 py-1 rounded text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700" onClick={onCancelNewFolder}>
             取消
           </button>
         </div>
@@ -274,29 +285,29 @@ function FolderList({
       <div className="space-y-0.5 max-h-48 overflow-y-auto">
         <button
           className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs ${
-            !activeFolder ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-slate-50'
+            !activeFolder ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'hover:bg-slate-50 dark:hover:bg-slate-700'
           }`}
           onClick={() => onFolderChange('')}
         >
           <span className="font-medium">全部笔记</span>
-          <span className="ml-auto text-[11px] text-slate-400">{snippets.length}</span>
+          <span className="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{snippets.length}</span>
         </button>
         {folders.map((f) => (
           <div key={f} className="group flex items-center">
             <button
               className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left ${
-                activeFolder === f ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-slate-50'
+                activeFolder === f ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'hover:bg-slate-50 dark:hover:bg-slate-700'
               }`}
               onClick={() => onFolderChange(f)}
             >
               <FolderOpen className="w-3 h-3 shrink-0" />
               <span className="truncate">{f}</span>
-              <span className="ml-auto text-[11px] text-slate-400">
+              <span className="ml-auto text-[11px] text-slate-400 dark:text-slate-500">
                 {snippets.filter((s) => s.folder === f).length}
               </span>
             </button>
             <button
-              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition-opacity"
+              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500 transition-opacity"
               title="删除文件夹"
               onClick={() => onDeleteFolder(f)}
             >
@@ -356,7 +367,7 @@ function NoteDetail({
       {/* 顶栏：标题 + 操作按钮 */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <div className="text-xs uppercase tracking-[0.3em] text-slate-400">
+          <div className="text-xs uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">
             {snippet.source}
           </div>
           {editing ? (
@@ -366,11 +377,11 @@ function NoteDetail({
               className="text-2xl font-semibold mt-2"
             />
           ) : (
-            <h2 className="text-2xl font-semibold text-slate-900 mt-2">
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mt-2">
               {snippet.title}
             </h2>
           )}
-          <div className="mt-2 text-xs text-slate-500">
+          <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
             保存于 {formatDate(snippet.timestamp)}
           </div>
         </div>
@@ -378,7 +389,7 @@ function NoteDetail({
           {editing ? (
             <>
               <button
-                className="px-3 py-1 rounded-full text-xs border border-slate-200 hover:border-slate-400"
+                className="px-3 py-1 rounded-full text-xs border border-slate-200 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 text-slate-700 dark:text-slate-300"
                 onClick={handleCancel}
               >
                 <X className="w-3 h-3 inline-block mr-1" /> 取消
@@ -394,26 +405,26 @@ function NoteDetail({
             <>
               {snippet.url && (
                 <button
-                  className="px-3 py-1 rounded-full text-xs border border-slate-200 hover:border-slate-400"
+                  className="px-3 py-1 rounded-full text-xs border border-slate-200 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 text-slate-700 dark:text-slate-300"
                   onClick={() => window.open(snippet.url)}
                 >
                   <ExternalLink className="w-3 h-3 inline-block mr-1" /> 原网页
                 </button>
               )}
               <button
-                className="px-3 py-1 rounded-full text-xs border border-slate-200 hover:border-slate-400"
+                className="px-3 py-1 rounded-full text-xs border border-slate-200 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 text-slate-700 dark:text-slate-300"
                 onClick={handleCopy}
               >
                 <Copy className="w-3 h-3 inline-block mr-1" /> 复制文本
               </button>
               <button
-                className="px-3 py-1 rounded-full text-xs border border-emerald-200 text-emerald-700 hover:border-emerald-400"
+                className="px-3 py-1 rounded-full text-xs border border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 hover:border-emerald-400 dark:hover:border-emerald-500"
                 onClick={() => setEditing(true)}
               >
                 <Pencil className="w-3 h-3 inline-block mr-1" /> 编辑
               </button>
               <button
-                className="px-3 py-1 rounded-full text-xs border border-red-200 text-red-600 hover:border-red-400"
+                className="px-3 py-1 rounded-full text-xs border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:border-red-400 dark:hover:border-red-600"
                 onClick={() => onDelete(snippet.id)}
               >
                 <Trash2 className="w-3 h-3 inline-block mr-1" /> 删除
@@ -424,11 +435,11 @@ function NoteDetail({
       </div>
 
       {/* 标签 + 移动到文件夹 */}
-      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
         {/* 当前文件夹 */}
         <div className="relative">
           <button
-            className="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
             onClick={() => setShowMoveMenu(!showMoveMenu)}
           >
             <FolderOpen className="w-3 h-3" />
@@ -436,9 +447,9 @@ function NoteDetail({
             <ChevronDown className="w-3 h-3" />
           </button>
           {showMoveMenu && (
-            <div className="absolute top-full left-0 mt-1 w-40 bg-white rounded-lg border border-slate-200 shadow-lg z-10 py-1">
+            <div className="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-lg z-10 py-1">
               <button
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50"
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
                 onClick={() => { onUpdate(snippet.id, { folder: undefined }); setShowMoveMenu(false) }}
               >
                 未归类
@@ -446,8 +457,8 @@ function NoteDetail({
               {folders.map((f) => (
                 <button
                   key={f}
-                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 ${
-                    snippet.folder === f ? 'text-emerald-600 font-medium' : ''
+                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 ${
+                    snippet.folder === f ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-700 dark:text-slate-300'
                   }`}
                   onClick={() => { onUpdate(snippet.id, { folder: f }); setShowMoveMenu(false) }}
                 >
@@ -458,7 +469,7 @@ function NoteDetail({
           )}
         </div>
         {snippet.tags?.map((t) => (
-          <span key={t} className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full">
+          <span key={t} className="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full">
             #{t}
           </span>
         ))}
@@ -478,7 +489,7 @@ function NoteDetail({
           />
         ) : (
           <article
-            className="keji-rich min-h-[480px] rounded-2xl border border-slate-200 bg-white px-5 py-5 prose prose-sm max-w-none"
+            className="keji-rich min-h-[480px] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-5 prose prose-sm dark:prose-invert max-w-none"
             dangerouslySetInnerHTML={{ __html: snippet.contentHtml || formatAnswer(snippet.answer) }}
           />
         )}
