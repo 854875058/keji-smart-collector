@@ -66,7 +66,7 @@ export default defineConfig({
         sidepanel: resolve(__dirname, 'src/entry/sidepanel.html'),
         web: resolve(__dirname, 'src/entry/web.html'),
         background: resolve(__dirname, 'src/background/index.ts'),
-        content: resolve(__dirname, 'src/content/index.ts'),
+        // content script 由 vite.content.config.ts 单独构建为 IIFE
       },
       output: {
         entryFileNames: (chunkInfo) => {
@@ -76,10 +76,7 @@ export default defineConfig({
         },
         chunkFileNames: 'assets/[name].js',
         assetFileNames: (assetInfo) => {
-          if (assetInfo.name?.endsWith('.css')) {
-            if (assetInfo.name.includes('content')) return 'assets/content.css'
-            return 'assets/globals.css'
-          }
+          if (assetInfo.name?.endsWith('.css')) return 'assets/globals.css'
           return 'assets/[name][extname]'
         },
       },
