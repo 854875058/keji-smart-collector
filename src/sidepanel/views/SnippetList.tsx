@@ -6,9 +6,9 @@ import { Input } from '../components/ui/input'
 import {
   Search, Star, Trash2, ExternalLink, Copy, FolderOpen,
   ArrowLeft, Tag, X, CheckSquare, Square, MinusSquare,
-  ArrowUpDown, ChevronDown, Save, FolderInput,
+  ArrowUpDown, ChevronDown, Save, FolderInput, Filter,
 } from 'lucide-react'
-import { formatDate } from '../../lib/utils'
+import { formatDate, highlightText, type SearchScope } from '../../lib/utils'
 
 /** 在新标签页打开 web.html 笔记详情 */
 async function openNoteInWebTab(snippetId: string) {
@@ -33,12 +33,21 @@ const SORT_LABELS: Record<SortOption, string> = {
   'title': '按标题',
 }
 
+const SCOPE_LABELS: Record<SearchScope, string> = {
+  'all': '全部',
+  'title': '标题',
+  'content': '内容',
+  'tags': '标签',
+}
+
 interface Props {
   snippets: Snippet[]
   folders: string[]
   activeFolder: string
   searchQuery: string
+  searchScope: SearchScope
   onSearchChange: (q: string) => void
+  onSearchScopeChange: (scope: SearchScope) => void
   onFolderChange: (folder: string) => void
   onDelete: (id: string) => void
   onToggleFavourite: (id: string) => void
@@ -50,7 +59,9 @@ export function SnippetList({
   folders,
   activeFolder,
   searchQuery,
+  searchScope,
   onSearchChange,
+  onSearchScopeChange,
   onFolderChange,
   onDelete,
   onToggleFavourite,
@@ -61,6 +72,7 @@ export function SnippetList({
   const [detailId, setDetailId] = useState<string | null>(null)
   const [showSortDropdown, setShowSortDropdown] = useState(false)
   const [showBatchMoveMenu, setShowBatchMoveMenu] = useState(false)
+  const [showScopeDropdown, setShowScopeDropdown] = useState(false)
 
   // 排序后的列表
   const sortedSnippets = useMemo(() => {
@@ -161,12 +173,46 @@ export function SnippetList({
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
-            className="pl-8"
+            className="pl-8 pr-20"
             placeholder="搜索笔记..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
           />
+          {/* 搜索范围选择器 */}
+          <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+            <button
+              onClick={() => setShowScopeDropdown(!showScopeDropdown)}
+              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 px-1.5 py-1 rounded hover:bg-slate-100 transition-colors"
+            >
+              <Filter className="h-3 w-3" />
+              {SCOPE_LABELS[searchScope]}
+            </button>
+            {showScopeDropdown && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowScopeDropdown(false)} />
+                <div className="absolute top-full right-0 mt-1 z-20 bg-white rounded-lg border border-slate-200 shadow-lg py-1 min-w-[80px]">
+                  {(Object.entries(SCOPE_LABELS) as [SearchScope, string][]).map(([key, label]) => (
+                    <button
+                      key={key}
+                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 ${
+                        searchScope === key ? 'text-emerald-600 font-medium' : 'text-slate-700'
+                      }`}
+                      onClick={() => { onSearchScopeChange(key); setShowScopeDropdown(false) }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
+        {/* 搜索匹配数量 */}
+        {searchQuery.trim() && (
+          <div className="mt-1.5 text-xs text-slate-400">
+            找到 {snippets.length} 条匹配笔记
+          </div>
+        )}
       </div>
 
       {/* 排序 + 全选 */}
@@ -329,9 +375,9 @@ export function SnippetList({
                     onClick={() => setDetailId(snippet.id)}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="font-semibold text-sm text-slate-900 truncate">
-                        {snippet.title}
-                      </div>
+                      <div className="font-semibold text-sm text-slate-900 truncate"
+                        dangerouslySetInnerHTML={{ __html: highlightText(snippet.title, searchQuery) }}
+                      />
                       <button
                         onClick={(e) => { e.stopPropagation(); onToggleFavourite(snippet.id) }}
                         className="shrink-0"
@@ -345,23 +391,23 @@ export function SnippetList({
                         />
                       </button>
                     </div>
-                    <div className="text-xs text-slate-500 mt-1 truncate">
-                      Q: {snippet.question}
-                    </div>
+                    <div className="text-xs text-slate-500 mt-1 truncate"
+                      dangerouslySetInnerHTML={{ __html: `Q: ${highlightText(snippet.question, searchQuery)}` }}
+                    />
                   </div>
                 </div>
 
-                <div className="text-xs text-slate-600 mt-2 line-clamp-2 pl-6" onClick={() => setDetailId(snippet.id)}>
-                  {snippet.answer.slice(0, 120)}
-                </div>
+                <div className="text-xs text-slate-600 mt-2 line-clamp-2 pl-6" onClick={() => setDetailId(snippet.id)}
+                  dangerouslySetInnerHTML={{ __html: highlightText(snippet.answer.slice(0, 120), searchQuery) }}
+                />
 
                 {/* 标签预览 */}
                 {snippet.tags && snippet.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2 pl-6">
                     {snippet.tags.slice(0, 3).map((t) => (
-                      <span key={t} className="px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[10px]">
-                        #{t}
-                      </span>
+                      <span key={t} className="px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[10px]"
+                        dangerouslySetInnerHTML={{ __html: `#${highlightText(t, searchQuery)}` }}
+                      />
                     ))}
                     {snippet.tags.length > 3 && (
                       <span className="text-[10px] text-slate-400">+{snippet.tags.length - 3}</span>

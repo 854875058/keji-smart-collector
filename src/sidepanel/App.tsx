@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { storage } from '../lib/storage'
 import type { Snippet } from '../lib/types'
+import { filterBySearch, type SearchScope } from '../lib/utils'
 import { SnippetList } from './views/SnippetList'
 import { AgentView } from './views/Agent'
 import { SyncObsidian } from './views/SyncObsidian'
@@ -16,6 +17,7 @@ export default function App() {
   const [folders, setFolders] = useState<string[]>([])
   const [activeFolder, setActiveFolder] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchScope, setSearchScope] = useState<SearchScope>('all')
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   // 初始化加载数据
@@ -53,16 +55,11 @@ export default function App() {
       result = result.filter((s) => s.folder === activeFolder)
     }
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter(
-        (s) =>
-          s.title.toLowerCase().includes(q) ||
-          s.question.toLowerCase().includes(q) ||
-          s.answer.toLowerCase().includes(q)
-      )
+      const matches = filterBySearch(result, searchQuery, searchScope)
+      result = matches.map((m) => m.snippet)
     }
     return result
-  }, [snippets, activeFolder, searchQuery])
+  }, [snippets, activeFolder, searchQuery, searchScope])
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
@@ -141,7 +138,9 @@ export default function App() {
             folders={folders}
             activeFolder={activeFolder}
             searchQuery={searchQuery}
+            searchScope={searchScope}
             onSearchChange={setSearchQuery}
+            onSearchScopeChange={setSearchScope}
             onFolderChange={setActiveFolder}
             onDelete={async (id) => {
               await storage.deleteSnippet(id)

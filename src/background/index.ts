@@ -9,19 +9,41 @@ chrome.sidePanel
 // 请求去重 Map
 const pendingRequests = new Map<string, boolean>()
 
+// 右键菜单点击目标映射 (requestId -> menuItemId)
+const menuIdTargetMap = new Map<string, string>()
+
 // 右键菜单
 chrome.runtime.onInstalled.addListener(() => {
+  // 父级菜单
+  chrome.contextMenus.create({
+    id: 'keji-parent',
+    title: '可记智能收藏',
+    contexts: ['page', 'selection'],
+  })
+  // 子菜单：保存到可记
   chrome.contextMenus.create({
     id: 'keji-save',
-    title: '使用 可记 保存',
+    parentId: 'keji-parent',
+    title: '保存到可记',
+    contexts: ['page', 'selection'],
+  })
+  // 子菜单：保存到收集箱
+  chrome.contextMenus.create({
+    id: 'keji-save-inbox',
+    parentId: 'keji-parent',
+    title: '保存到收集箱',
     contexts: ['page', 'selection'],
   })
 })
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (!tab?.id) return
+  const menuId = info.menuItemId as string
   const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   pendingRequests.set(requestId, false)
+
+  // 将目标存储到 requestId 映射，以便 CAPTURE_RESULT 时区分
+  menuIdTargetMap.set(requestId, menuId)
 
   chrome.tabs.sendMessage(
     tab.id,
@@ -36,6 +58,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         chrome.storage.local.set({
           captureResult: { error: '无法读取当前页面内容' },
         })
+        menuIdTargetMap.delete(requestId)
       }
     }
   )
@@ -107,22 +130,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.storage.local.set({
         captureResult: { error: message.error },
       })
-      if (requestId) pendingRequests.delete(requestId)
+      if (requestId) {
+        pendingRequests.delete(requestId)
+        menuIdTargetMap.delete(requestId)
+      }
     } else {
-      chrome.storage.local.get(['snippets', 'activeFolder'], (data) => {
-        const snippets: Snippet[] = data.snippets || []
-        const activeFolder: string = data.activeFolder || ''
-        const snippet = message.payload as Snippet
-        const withFolder =
-          !snippet.folder && activeFolder
-            ? { ...snippet, folder: activeFolder }
-            : snippet
-        chrome.storage.local.set({
-          snippets: [withFolder, ...snippets],
-          captureResult: { success: true, snippet: withFolder },
+      const targetMenu = requestId ? menuIdTargetMap.get(requestId) : null
+      const snippet = message.payload as Snippet
+
+      if (targetMenu === 'keji-save-inbox') {
+        // 保存到收集箱
+        chrome.storage.local.get(['collectionItems'], (data) => {
+          const items: Snippet[] = data.collectionItems || []
+          chrome.storage.local.set({
+            collectionItems: [...items, snippet],
+            captureResult: { success: true, snippet, target: 'inbox' },
+          })
         })
-      })
-      if (requestId) pendingRequests.delete(requestId)
+      } else {
+        // 保存到可记（默认）
+        chrome.storage.local.get(['snippets', 'activeFolder'], (data) => {
+          const snippets: Snippet[] = data.snippets || []
+          const activeFolder: string = data.activeFolder || ''
+          const withFolder =
+            !snippet.folder && activeFolder
+              ? { ...snippet, folder: activeFolder }
+              : snippet
+          chrome.storage.local.set({
+            snippets: [withFolder, ...snippets],
+            captureResult: { success: true, snippet: withFolder },
+          })
+        })
+      }
+
+      if (requestId) {
+        pendingRequests.delete(requestId)
+        menuIdTargetMap.delete(requestId)
+      }
     }
   }
 })

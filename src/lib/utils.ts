@@ -1,5 +1,9 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import type { Snippet } from './types'
+
+/** 搜索范围 */
+export type SearchScope = 'all' | 'title' | 'content' | 'tags'
 
 /** 合并 Tailwind 类名 */
 export function cn(...inputs: ClassValue[]) {
@@ -117,4 +121,80 @@ export function bm25Search(
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, topK)
+}
+
+/** 获取 snippet 指定范围的文本内容 */
+function getSnippetText(snippet: Snippet, scope: SearchScope): string {
+  switch (scope) {
+    case 'title':
+      return snippet.title
+    case 'content':
+      return [snippet.question, snippet.answer].join(' ')
+    case 'tags':
+      return (snippet.tags || []).join(' ')
+    case 'all':
+    default:
+      return [
+        snippet.title,
+        snippet.question,
+        snippet.answer,
+        (snippet.tags || []).join(' '),
+        (snippet.annotations || []).map((a) => `${a.text} ${a.quote || ''}`).join(' '),
+      ].join(' ')
+  }
+}
+
+/** 按搜索范围过滤 snippet 列表，返回匹配的 snippet 及匹配数量 */
+export function filterBySearch(
+  snippets: Snippet[],
+  query: string,
+  scope: SearchScope = 'all'
+): { snippet: Snippet; matchCount: number }[] {
+  const trimmed = query.trim()
+  if (!trimmed) return snippets.map((s) => ({ snippet: s, matchCount: 0 }))
+
+  const queryLower = trimmed.toLowerCase()
+  const terms = queryLower.split(/\s+/).filter((t) => t.length > 0)
+
+  return snippets
+    .map((snippet) => {
+      const text = getSnippetText(snippet, scope).toLowerCase()
+      let matchCount = 0
+      for (const term of terms) {
+        let idx = text.indexOf(term)
+        while (idx !== -1) {
+          matchCount++
+          idx = text.indexOf(term, idx + term.length)
+        }
+      }
+      return { snippet, matchCount }
+    })
+    .filter((r) => r.matchCount > 0)
+    .sort((a, b) => b.matchCount - a.matchCount)
+}
+
+/** 在文本中高亮匹配的关键词，返回 HTML 字符串（用 <mark> 包裹） */
+export function highlightText(text: string, query: string): string {
+  const trimmed = query.trim()
+  if (!trimmed) return escapeHtml(text)
+
+  const terms = trimmed.split(/\s+/).filter((t) => t.length > 0)
+  if (terms.length === 0) return escapeHtml(text)
+
+  // 按长度降序排列，优先匹配较长的词
+  const sorted = [...terms].sort((a, b) => b.length - a.length)
+  const pattern = sorted.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
+  const regex = new RegExp(`(${pattern})`, 'gi')
+
+  // split 会保留捕获组，奇数索引为匹配项
+  const parts = text.split(regex)
+  return parts
+    .map((part, i) => {
+      // 奇数索引 = 正则捕获组匹配的内容
+      if (i % 2 === 1) {
+        return `<mark class="bg-yellow-200 text-yellow-900 rounded px-0.5">${escapeHtml(part)}</mark>`
+      }
+      return escapeHtml(part)
+    })
+    .join('')
 }
