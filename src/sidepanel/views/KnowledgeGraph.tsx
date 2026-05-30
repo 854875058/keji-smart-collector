@@ -114,7 +114,7 @@ export function KnowledgeGraph({ snippets, onBack }: Props) {
     // 计算边（关键词重叠度）
     const edges: GraphEdge[] = []
     const connectionCount = new Map<string, number>()
-    const THRESHOLD = 0.08 // 最低重叠阈值
+    const THRESHOLD = 0.03 // 最低重叠阈值
 
     for (let i = 0; i < snippets.length; i++) {
       for (let j = i + 1; j < snippets.length; j++) {
