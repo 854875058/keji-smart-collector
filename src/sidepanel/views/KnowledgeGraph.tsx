@@ -131,8 +131,8 @@ export function KnowledgeGraph({ snippets, onBack }: Props) {
 
     // 创建节点（初始位置随机分布在画布中）
     const canvas = canvasRef.current
-    const w = canvas?.width || 800
-    const h = canvas?.height || 600
+    const w = canvas?.width || window.innerWidth || 1200
+    const h = canvas?.height || (window.innerHeight - 100) || 700
     const nodesMap = new Map<string, GraphNode>()
     for (const s of snippets) {
       const connections = connectionCount.get(s.id) || 0
@@ -240,8 +240,10 @@ export function KnowledgeGraph({ snippets, onBack }: Props) {
 
     const { scale, offsetX, offsetY } = transformRef.current
 
-    // 清空
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    // 清空（用背景色）
+    const isDark = document.documentElement.classList.contains('dark')
+    ctx.fillStyle = isDark ? '#0f172a' : '#f8fafc'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
     ctx.save()
     ctx.translate(offsetX, offsetY)
     ctx.scale(scale, scale)
@@ -255,7 +257,9 @@ export function KnowledgeGraph({ snippets, onBack }: Props) {
       ctx.beginPath()
       ctx.moveTo(n1.x, n1.y)
       ctx.lineTo(n2.x, n2.y)
-      ctx.strokeStyle = `rgba(148, 163, 184, ${Math.min(0.6, edge.weight * 2)})`
+      ctx.strokeStyle = isDark
+        ? `rgba(100, 116, 139, ${Math.min(0.8, edge.weight * 3)})`
+        : `rgba(148, 163, 184, ${Math.min(0.6, edge.weight * 2)})`
       ctx.lineWidth = Math.max(0.5, edge.weight * 4)
       ctx.stroke()
     }
@@ -320,10 +324,15 @@ export function KnowledgeGraph({ snippets, onBack }: Props) {
 
     const resize = () => {
       const rect = container.getBoundingClientRect()
-      canvas.width = rect.width
-      canvas.height = rect.height - 56 // 减去底部摘要区高度
+      const w = rect.width || window.innerWidth
+      const h = (rect.height || window.innerHeight) - 100 // 减去顶栏和底部摘要
+      canvas.width = w
+      canvas.height = h
     }
+    // 延迟执行确保容器已渲染
     resize()
+    requestAnimationFrame(resize)
+    setTimeout(resize, 100)
 
     const observer = new ResizeObserver(resize)
     observer.observe(container)
