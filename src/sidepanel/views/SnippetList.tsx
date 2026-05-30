@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react'
-import type { Snippet } from '../../lib/types'
+import type { Snippet, AgentConfig } from '../../lib/types'
 import { storage } from '../../lib/storage'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -7,8 +7,11 @@ import {
   Search, Star, Trash2, ExternalLink, Copy, FolderOpen,
   ArrowLeft, Tag, X, CheckSquare, Square, MinusSquare,
   ArrowUpDown, ChevronDown, Save, FolderInput, Filter,
+  Sparkles, Loader2, GitCompareArrows,
 } from 'lucide-react'
 import { formatDate, highlightText, type SearchScope } from '../../lib/utils'
+import { findRelatedNotes } from '../../agent/relatedNotes'
+import { batchAutoTag, batchFindDuplicates } from '../../agent/batchOps'
 
 /** 在新标签页打开 web.html 笔记详情 */
 async function openNoteInWebTab(snippetId: string) {
@@ -42,6 +45,7 @@ const SCOPE_LABELS: Record<SearchScope, string> = {
 
 interface Props {
   snippets: Snippet[]
+  allSnippets: Snippet[]
   folders: string[]
   activeFolder: string
   searchQuery: string
@@ -56,6 +60,7 @@ interface Props {
 
 export function SnippetList({
   snippets,
+  allSnippets,
   folders,
   activeFolder,
   searchQuery,
@@ -73,6 +78,9 @@ export function SnippetList({
   const [showSortDropdown, setShowSortDropdown] = useState(false)
   const [showBatchMoveMenu, setShowBatchMoveMenu] = useState(false)
   const [showScopeDropdown, setShowScopeDropdown] = useState(false)
+  const [batchAiLoading, setBatchAiLoading] = useState(false)
+  const [duplicateResults, setDuplicateResults] = useState<{ group1: string; group2: string; reason: string }[]>([])
+  const [showDuplicatePanel, setShowDuplicatePanel] = useState(false)
 
   // 排序后的列表
   const sortedSnippets = useMemo(() => {
@@ -94,10 +102,10 @@ export function SnippetList({
     return sorted
   }, [snippets, sortOption])
 
-  // 当前详情笔记
+  // 当前详情笔记（从全部笔记中查找，支持从相关笔记跳转到不在筛选列表中的笔记）
   const detailSnippet = useMemo(
-    () => (detailId ? snippets.find((s) => s.id === detailId) || null : null),
-    [snippets, detailId]
+    () => (detailId ? allSnippets.find((s) => s.id === detailId) || null : null),
+    [allSnippets, detailId]
   )
 
   // ── 选择操作 ──────────────────────────────────────
@@ -148,16 +156,73 @@ export function SnippetList({
     }
   }, [showToast])
 
+  // ── AI 批量操作 ──────────────────────────────────────
+  const handleBatchAutoTag = useCallback(async () => {
+    const config = await storage.getAgentConfig()
+    if (!config?.apiKey) {
+      showToast('error', '请先在 AI 页面配置 API Key')
+      return
+    }
+    const selectedSnippets = sortedSnippets.filter((s) => selectedIds.has(s.id))
+    if (selectedSnippets.length === 0) return
+
+    setBatchAiLoading(true)
+    try {
+      const results = await batchAutoTag(selectedSnippets, config)
+      let updated = 0
+      for (const [id, { tags, summary }] of results) {
+        await storage.updateSnippet(id, { tags, summary })
+        updated++
+      }
+      showToast('success', `已为 ${updated} 条笔记生成标签和摘要`)
+    } catch (err: any) {
+      showToast('error', `AI 标签失败: ${err.message || '未知错误'}`)
+    } finally {
+      setBatchAiLoading(false)
+    }
+  }, [sortedSnippets, selectedIds, showToast])
+
+  const handleBatchFindDuplicates = useCallback(async () => {
+    const config = await storage.getAgentConfig()
+    if (!config?.apiKey) {
+      showToast('error', '请先在 AI 页面配置 API Key')
+      return
+    }
+    const selectedSnippets = sortedSnippets.filter((s) => selectedIds.has(s.id))
+    if (selectedSnippets.length < 2) {
+      showToast('error', '请至少选择 2 条笔记')
+      return
+    }
+
+    setBatchAiLoading(true)
+    try {
+      const results = await batchFindDuplicates(selectedSnippets, config)
+      setDuplicateResults(results)
+      setShowDuplicatePanel(true)
+      if (results.length === 0) {
+        showToast('success', '未发现重复笔记')
+      } else {
+        showToast('success', `发现 ${results.length} 组重复笔记`)
+      }
+    } catch (err: any) {
+      showToast('error', `查重失败: ${err.message || '未知错误'}`)
+    } finally {
+      setBatchAiLoading(false)
+    }
+  }, [sortedSnippets, selectedIds, showToast])
+
   // ── 详情视图 ──────────────────────────────────────
   if (detailSnippet) {
     return (
       <NoteDetailInline
         snippet={detailSnippet}
+        allSnippets={allSnippets}
         folders={folders}
         onBack={() => setDetailId(null)}
         onDelete={onDelete}
         onToggleFavourite={onToggleFavourite}
         showToast={showToast}
+        onSelectNote={(id) => setDetailId(id)}
       />
     )
   }
@@ -267,49 +332,127 @@ export function SnippetList({
 
       {/* 批量操作栏 */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-200 bg-emerald-50 dark:border-slate-700 dark:bg-emerald-900/30">
-          <span className="text-xs text-emerald-700 font-medium">
-            已选 {selectedIds.size} 项
-          </span>
-          <div className="flex-1" />
-          <div className="relative">
+        <div className="px-3 py-2 border-b border-slate-200 bg-emerald-50 dark:border-slate-700 dark:bg-emerald-900/30">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-emerald-700 font-medium">
+              已选 {selectedIds.size} 项
+            </span>
+            <div className="flex-1" />
+            <div className="relative">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowBatchMoveMenu(!showBatchMoveMenu)}
+              >
+                <FolderInput className="h-3.5 w-3.5 mr-1" />
+                移动到
+                <ChevronDown className="h-3 w-3 ml-1" />
+              </Button>
+              {showBatchMoveMenu && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowBatchMoveMenu(false)} />
+                  <div className="absolute top-full right-0 mt-1 z-20 bg-white rounded-lg border border-slate-200 shadow-lg py-1 min-w-[140px] dark:bg-slate-800 dark:border-slate-700">
+                    <button
+                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 text-slate-700 dark:hover:bg-slate-700 dark:text-slate-300"
+                      onClick={() => handleBatchMove(null)}
+                    >
+                      移出文件夹
+                    </button>
+                    {folders.map((f) => (
+                      <button
+                        key={f}
+                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 text-slate-700 dark:hover:bg-slate-700 dark:text-slate-300"
+                        onClick={() => handleBatchMove(f)}
+                      >
+                        <FolderOpen className="h-3 w-3 inline-block mr-1" />
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <Button size="sm" variant="destructive" onClick={handleBatchDelete}>
+              <Trash2 className="h-3.5 w-3.5 mr-1" />
+              删除
+            </Button>
+          </div>
+          {/* AI 批量操作 */}
+          <div className="flex items-center gap-2 mt-2">
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setShowBatchMoveMenu(!showBatchMoveMenu)}
+              onClick={handleBatchAutoTag}
+              disabled={batchAiLoading}
             >
-              <FolderInput className="h-3.5 w-3.5 mr-1" />
-              移动到
-              <ChevronDown className="h-3 w-3 ml-1" />
+              {batchAiLoading ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5 mr-1" />
+              )}
+              AI 自动标签
             </Button>
-            {showBatchMoveMenu && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowBatchMoveMenu(false)} />
-                <div className="absolute top-full right-0 mt-1 z-20 bg-white rounded-lg border border-slate-200 shadow-lg py-1 min-w-[140px] dark:bg-slate-800 dark:border-slate-700">
-                  <button
-                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 text-slate-700 dark:hover:bg-slate-700 dark:text-slate-300"
-                    onClick={() => handleBatchMove(null)}
-                  >
-                    移出文件夹
-                  </button>
-                  {folders.map((f) => (
-                    <button
-                      key={f}
-                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 text-slate-700 dark:hover:bg-slate-700 dark:text-slate-300"
-                      onClick={() => handleBatchMove(f)}
-                    >
-                      <FolderOpen className="h-3 w-3 inline-block mr-1" />
-                      {f}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleBatchFindDuplicates}
+              disabled={batchAiLoading}
+            >
+              {batchAiLoading ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              ) : (
+                <GitCompareArrows className="h-3.5 w-3.5 mr-1" />
+              )}
+              查找重复
+            </Button>
           </div>
-          <Button size="sm" variant="destructive" onClick={handleBatchDelete}>
-            <Trash2 className="h-3.5 w-3.5 mr-1" />
-            删除
-          </Button>
+        </div>
+      )}
+
+      {/* 重复笔记检测结果 */}
+      {showDuplicatePanel && duplicateResults.length > 0 && (
+        <div className="px-3 py-2 border-b border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+              发现 {duplicateResults.length} 组重复笔记
+            </span>
+            <button
+              onClick={() => setShowDuplicatePanel(false)}
+              className="text-xs text-amber-600 hover:text-amber-800 dark:text-amber-400"
+            >
+              关闭
+            </button>
+          </div>
+          <div className="space-y-1.5 max-h-40 overflow-y-auto">
+            {duplicateResults.map((d, idx) => {
+              const s1 = allSnippets.find((s) => s.id === d.group1)
+              const s2 = allSnippets.find((s) => s.id === d.group2)
+              if (!s1 || !s2) return null
+              return (
+                <div key={idx} className="flex items-start gap-2 text-xs p-2 rounded bg-white border border-amber-200 dark:bg-slate-800 dark:border-amber-800">
+                  <GitCompareArrows className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <button
+                        className="font-medium text-slate-700 hover:text-emerald-600 truncate dark:text-slate-300"
+                        onClick={() => setDetailId(d.group1)}
+                      >
+                        {s1.title}
+                      </button>
+                      <span className="text-slate-400">&</span>
+                      <button
+                        className="font-medium text-slate-700 hover:text-emerald-600 truncate dark:text-slate-300"
+                        onClick={() => setDetailId(d.group2)}
+                      >
+                        {s2.title}
+                      </button>
+                    </div>
+                    <div className="text-slate-500 mt-0.5 dark:text-slate-400">{d.reason}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -464,22 +607,31 @@ export function SnippetList({
 
 function NoteDetailInline({
   snippet,
+  allSnippets,
   folders,
   onBack,
   onDelete,
   onToggleFavourite,
   showToast,
+  onSelectNote,
 }: {
   snippet: Snippet
+  allSnippets: Snippet[]
   folders: string[]
   onBack: () => void
   onDelete: (id: string) => void
   onToggleFavourite: (id: string) => void
   showToast: (type: 'success' | 'error', message: string) => void
+  onSelectNote: (id: string) => void
 }) {
   const [tags, setTags] = useState<string[]>(snippet.tags || [])
   const [tagInput, setTagInput] = useState('')
   const [showMoveMenu, setShowMoveMenu] = useState(false)
+
+  const relatedNotes = useMemo(
+    () => findRelatedNotes(snippet, allSnippets, 5),
+    [snippet, allSnippets]
+  )
 
   const handleAddTag = useCallback(async () => {
     const newTag = tagInput.trim()
@@ -657,6 +809,41 @@ function NoteDetailInline({
           {snippet.answer}
         </div>
       </div>
+
+      {/* 相关笔记 */}
+      {relatedNotes.length > 0 && (
+        <div className="px-3 py-3 border-t border-slate-100 dark:border-slate-700">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
+            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">相关笔记</span>
+          </div>
+          <div className="space-y-1.5">
+            {relatedNotes.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => onSelectNote(r.id)}
+                className="w-full text-left p-2 rounded-lg border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-colors dark:border-slate-700 dark:hover:border-emerald-700 dark:hover:bg-emerald-900/20"
+              >
+                <div className="text-xs font-medium text-slate-800 truncate dark:text-slate-200">
+                  {r.title}
+                </div>
+                <div className="text-[10px] text-slate-500 mt-0.5 line-clamp-1 dark:text-slate-400">
+                  {r.answer.slice(0, 80)}
+                </div>
+                {r.tags && r.tags.length > 0 && (
+                  <div className="flex gap-1 mt-1">
+                    {r.tags.slice(0, 3).map((t) => (
+                      <span key={t} className="px-1 py-0.5 bg-amber-50 text-amber-600 rounded text-[9px] dark:bg-amber-900/30 dark:text-amber-400">
+                        #{t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 底部信息 */}
       <div className="px-3 py-2 border-t border-slate-100 text-[10px] text-slate-400 flex items-center justify-between dark:border-slate-700 dark:text-slate-500">

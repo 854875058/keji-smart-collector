@@ -4,6 +4,7 @@ import { storage } from '../../lib/storage'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Send, Settings, Loader2, Sparkles } from 'lucide-react'
+import { callAI } from '../../agent/api'
 
 interface Props {
   snippets: Snippet[]
@@ -380,102 +381,3 @@ ${notesContext || '暂无相关笔记'}
 请用中文回答，保持简洁有用。如果问题涉及笔记内容，优先基于已有笔记回答。`
 }
 
-/** 判断是否使用 Anthropic API 格式 */
-function isAnthropicFormat(baseUrl: string): boolean {
-  const lower = baseUrl.toLowerCase()
-  return lower.includes('anthropic') || lower.includes('claude')
-}
-
-async function callAI(
-  config: AgentConfig,
-  messages: { role: string; content: string }[]
-): Promise<string> {
-  if (isAnthropicFormat(config.baseUrl)) {
-    return callAnthropic(config, messages)
-  }
-  return callOpenAI(config, messages)
-}
-
-/** OpenAI 兼容格式 */
-async function callOpenAI(
-  config: AgentConfig,
-  messages: { role: string; content: string }[]
-): Promise<string> {
-  let base = config.baseUrl.replace(/\/+$/, '')
-  if (!base.endsWith('/chat/completions')) {
-    if (base.endsWith('/v1') || base.endsWith('/v4')) {
-      base = `${base}/chat/completions`
-    } else {
-      base = `${base}/chat/completions`
-    }
-  }
-
-  const resp = await fetch(base, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: config.model,
-      messages,
-      temperature: config.temperature ?? 0.7,
-      max_tokens: config.maxTokens ?? 2048,
-    }),
-  })
-
-  if (!resp.ok) {
-    const errBody = await resp.text().catch(() => '')
-    throw new Error(`API 请求失败 (${resp.status}): ${errBody.slice(0, 200)}`)
-  }
-
-  const data = await resp.json()
-  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error))
-  return data.choices?.[0]?.message?.content || ''
-}
-
-/** Anthropic 格式 */
-async function callAnthropic(
-  config: AgentConfig,
-  messages: { role: string; content: string }[]
-): Promise<string> {
-  let base = config.baseUrl.replace(/\/+$/, '')
-  // 拼接 Anthropic 端点
-  if (!base.endsWith('/messages')) {
-    if (base.endsWith('/v1')) {
-      base = `${base}/messages`
-    } else {
-      base = `${base}/v1/messages`
-    }
-  }
-
-  // 提取 system message
-  const systemMsg = messages.find((m) => m.role === 'system')?.content || ''
-  const nonSystem = messages
-    .filter((m) => m.role !== 'system')
-    .map((m) => ({ role: m.role === 'user' ? 'user' as const : 'assistant' as const, content: m.content }))
-
-  const resp = await fetch(base, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': config.apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: config.model,
-      system: systemMsg,
-      messages: nonSystem,
-      max_tokens: config.maxTokens ?? 2048,
-    }),
-  })
-
-  if (!resp.ok) {
-    const errBody = await resp.text().catch(() => '')
-    throw new Error(`API 请求失败 (${resp.status}): ${errBody.slice(0, 200)}`)
-  }
-
-  const data = await resp.json()
-  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error))
-  return data.content?.[0]?.text || ''
-}

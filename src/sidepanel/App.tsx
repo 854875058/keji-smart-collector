@@ -161,6 +161,7 @@ export default function App() {
         {view === 'snippets' && (
           <SnippetList
             snippets={filteredSnippets}
+            allSnippets={snippets}
             folders={folders}
             activeFolder={activeFolder}
             searchQuery={searchQuery}
