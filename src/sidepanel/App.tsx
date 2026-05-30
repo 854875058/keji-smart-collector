@@ -14,7 +14,7 @@ import { Button } from './components/ui/button'
 import { Search, FolderOpen, Sparkles, Home, Settings, FolderSync, Inbox, Sun, Moon, Cloud, Download, Network } from 'lucide-react'
 import { useTheme } from '../lib/useTheme'
 
-type View = 'home' | 'snippets' | 'agent' | 'sync' | 'collection' | 'auth' | 'export' | 'graph'
+type View = 'home' | 'snippets' | 'agent' | 'sync' | 'collection' | 'auth' | 'export'
 
 export default function App() {
   const { theme, toggleTheme } = useTheme()
@@ -103,7 +103,6 @@ export default function App() {
             { id: 'snippets' as const, icon: FolderOpen, label: '笔记' },
             { id: 'collection' as const, icon: Inbox, label: '收集' },
             { id: 'agent' as const, icon: Sparkles, label: 'AI' },
-            { id: 'graph' as const, icon: Network, label: '图谱' },
           ].map(({ id, icon: Icon, label }) => (
             <button
               key={id}
@@ -204,12 +203,6 @@ export default function App() {
             folders={folders}
             activeFolder={activeFolder}
             showToast={showToast}
-          />
-        )}
-        {view === 'graph' && (
-          <KnowledgeGraph
-            snippets={snippets}
-            onBack={() => setView('home')}
           />
         )}
       </main>
