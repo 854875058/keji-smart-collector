@@ -177,16 +177,19 @@ export function AgentView({ snippets, folders }: Props) {
   )
 }
 
-/** 预设提供商（快捷填充 base URL） */
+/** 预设提供商 */
 const AI_PRESETS = [
-  { id: 'openai', name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', defaultModel: 'gpt-4o-mini' },
-  { id: 'deepseek', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', defaultModel: 'deepseek-chat' },
-  { id: 'claude', name: 'Claude (Anthropic)', baseUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-4-20250514' },
-  { id: 'gemini', name: 'Gemini (OpenAI 兼容)', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', defaultModel: 'gemini-2.0-flash' },
-  { id: 'siliconflow', name: 'SiliconFlow', baseUrl: 'https://api.siliconflow.cn/v1', defaultModel: 'Qwen/Qwen2.5-7B-Instruct' },
-  { id: 'moonshot', name: 'Moonshot (Kimi)', baseUrl: 'https://api.moonshot.cn/v1', defaultModel: 'moonshot-v1-8k' },
-  { id: 'zhipu', name: '智谱 AI', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', defaultModel: 'glm-4-flash' },
-  { id: 'custom', name: '自定义', baseUrl: '', defaultModel: '' },
+  // ── Anthropic 格式 ──
+  { id: 'claude', name: 'Claude 官方', group: 'Anthropic', baseUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-4-20250514', models: ['claude-sonnet-4-20250514', 'claude-haiku-4-20250414'] },
+  { id: 'claude-proxy', name: 'Claude 代理', group: 'Anthropic', baseUrl: '', defaultModel: '', models: ['claude-sonnet-4-20250514', 'claude-haiku-4-20250414', 'mimo-v2.5-pro'] },
+  // ── OpenAI 兼容格式 ──
+  { id: 'openai', name: 'OpenAI', group: 'OpenAI', baseUrl: 'https://api.openai.com/v1', defaultModel: 'gpt-4o-mini', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'] },
+  { id: 'deepseek', name: 'DeepSeek', group: 'OpenAI', baseUrl: 'https://api.deepseek.com/v1', defaultModel: 'deepseek-chat', models: ['deepseek-chat', 'deepseek-coder'] },
+  { id: 'siliconflow', name: 'SiliconFlow', group: 'OpenAI', baseUrl: 'https://api.siliconflow.cn/v1', defaultModel: 'Qwen/Qwen2.5-7B-Instruct', models: ['Qwen/Qwen2.5-7B-Instruct', 'deepseek-ai/DeepSeek-V3', 'Qwen/Qwen2.5-72B-Instruct'] },
+  { id: 'moonshot', name: 'Moonshot (Kimi)', group: 'OpenAI', baseUrl: 'https://api.moonshot.cn/v1', defaultModel: 'moonshot-v1-8k', models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'] },
+  { id: 'zhipu', name: '智谱 AI', group: 'OpenAI', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', defaultModel: 'glm-4-flash', models: ['glm-4-flash', 'glm-4-plus', 'glm-4-long'] },
+  { id: 'gemini', name: 'Gemini', group: 'OpenAI', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', defaultModel: 'gemini-2.0-flash', models: ['gemini-2.0-flash', 'gemini-2.5-pro'] },
+  { id: 'custom', name: '自定义', group: '其他', baseUrl: '', defaultModel: '', models: [] },
 ]
 
 function AgentSettings({
@@ -203,10 +206,12 @@ function AgentSettings({
   const [model, setModel] = useState(config?.model || 'gpt-4o-mini')
   const [apiKey, setApiKey] = useState(config?.apiKey || '')
 
+  const currentPreset = AI_PRESETS.find((p) => p.id === presetId)
+
   const handlePresetChange = (id: string) => {
     setPresetId(id)
     const preset = AI_PRESETS.find((p) => p.id === id)
-    if (preset && id !== 'custom') {
+    if (preset && id !== 'custom' && id !== 'claude-proxy') {
       setBaseUrl(preset.baseUrl)
       setModel(preset.defaultModel)
     }
@@ -229,29 +234,37 @@ function AgentSettings({
     <div className="p-6 space-y-4">
       <h3 className="font-semibold text-slate-900 dark:text-slate-100">AI 助手设置</h3>
       <p className="text-xs text-slate-500 dark:text-slate-400">
-        支持所有 OpenAI 兼容格式的 API，数据不会上传到我们的服务器
+        支持 OpenAI 和 Anthropic 两种 API 格式，数据不会上传到我们的服务器
       </p>
 
       <div className="space-y-3">
-        {/* 快捷预设 */}
-        <div>
-          <label className="text-xs text-slate-600 mb-1 block dark:text-slate-400">快捷预设</label>
-          <div className="grid grid-cols-2 gap-1.5">
-            {AI_PRESETS.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => handlePresetChange(p.id)}
-                className={`text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
-                  presetId === p.id
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-600'
-                    : 'border border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700'
-                }`}
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* 快捷预设 - 按格式分组 */}
+        {['Anthropic', 'OpenAI', '其他'].map((group) => {
+          const groupPresets = AI_PRESETS.filter((p) => p.group === group)
+          if (groupPresets.length === 0) return null
+          return (
+            <div key={group}>
+              <label className="text-xs text-slate-600 mb-1 block dark:text-slate-400">
+                {group === 'Anthropic' ? 'Anthropic 格式' : group === 'OpenAI' ? 'OpenAI 兼容格式' : '其他'}
+              </label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {groupPresets.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => handlePresetChange(p.id)}
+                    className={`text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                      presetId === p.id
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-600'
+                        : 'border border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })}
 
         {/* Base URL */}
         <div>
@@ -272,11 +285,26 @@ function AgentSettings({
           <Input
             value={model}
             onChange={(e) => setModel(e.target.value)}
-            placeholder="gpt-4o-mini"
+            placeholder="输入模型名称"
           />
-          <p className="text-[10px] text-slate-400 mt-0.5 dark:text-slate-500">
-            直接输入模型名称，如 gpt-4o、deepseek-chat、claude-sonnet-4-20250514
-          </p>
+          {/* 模型快捷选择 */}
+          {currentPreset && currentPreset.models.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {currentPreset.models.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setModel(m)}
+                  className={`px-2 py-0.5 rounded text-[10px] transition-colors ${
+                    model === m
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600'
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* API Key */}
