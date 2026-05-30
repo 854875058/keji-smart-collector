@@ -103,6 +103,7 @@ export default function App() {
             { id: 'snippets' as const, icon: FolderOpen, label: '笔记' },
             { id: 'collection' as const, icon: Inbox, label: '收集' },
             { id: 'agent' as const, icon: Sparkles, label: 'AI' },
+            { id: 'graph' as const, icon: Network, label: '图谱' },
           ].map(({ id, icon: Icon, label }) => (
             <button
               key={id}
@@ -124,7 +125,6 @@ export default function App() {
           {[
             { id: 'sync' as const, icon: FolderSync, label: '同步' },
             { id: 'auth' as const, icon: Cloud, label: '云同步' },
-            { id: 'graph' as const, icon: Network, label: '图谱' },
           ].map(({ id, icon: Icon, label }) => (
             <button
               key={id}
