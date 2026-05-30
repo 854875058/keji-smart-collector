@@ -342,7 +342,18 @@ async function callAI(
   config: AgentConfig,
   messages: { role: string; content: string }[]
 ): Promise<string> {
-  const url = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`
+  // 自动处理各种 base URL 格式
+  let base = config.baseUrl.replace(/\/+$/, '')
+  // 如果已经包含完整路径，不再追加
+  if (base.endsWith('/chat/completions')) {
+    // 已经是完整路径
+  } else if (base.endsWith('/v1') || base.endsWith('/v4')) {
+    base = `${base}/chat/completions`
+  } else {
+    // 尝试追加 /chat/completions
+    base = `${base}/chat/completions`
+  }
+  const url = base
 
   const resp = await fetch(url, {
     method: 'POST',
