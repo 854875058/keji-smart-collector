@@ -94,6 +94,12 @@ export function AgentView({ snippets, folders }: Props) {
             <p className="text-sm text-slate-500 mt-1 dark:text-slate-400">
               基于你的收藏笔记，回答问题、整理内容
             </p>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="mt-2 text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+            >
+              ⚙ 设置 API
+            </button>
             <div className="mt-4 space-y-2 text-left max-w-sm mx-auto">
               {[
                 '我收藏了哪些关于 Docker 的内容？',
@@ -143,6 +149,14 @@ export function AgentView({ snippets, folders }: Props) {
       {/* 输入栏 */}
       <div className="border-t border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
         <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowSettings(true)}
+            title="API 设置"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
