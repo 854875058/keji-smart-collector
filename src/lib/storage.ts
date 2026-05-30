@@ -1,4 +1,4 @@
-import type { Snippet, AgentConfig, ObsidianConfig } from './types'
+import type { Snippet, AgentConfig, ObsidianConfig, SmartFolder } from './types'
 
 // 序列化 Promise 链，防止并发写入冲突
 let _updateQueue: Promise<void> = Promise.resolve()
@@ -159,5 +159,21 @@ export const storage = {
 
   async setObsidianConfig(config: ObsidianConfig): Promise<void> {
     await chrome.storage.local.set({ obsidianConfig: config })
+  },
+
+  // ── 智能文件夹 ──────────────────────────────────────────
+  async getSmartFolders(): Promise<SmartFolder[]> {
+    const { smartFolders } = await chrome.storage.local.get('smartFolders')
+    return smartFolders || []
+  },
+
+  async addSmartFolder(folder: SmartFolder): Promise<void> {
+    const folders = await this.getSmartFolders()
+    await chrome.storage.local.set({ smartFolders: [...folders, folder] })
+  },
+
+  async deleteSmartFolder(id: string): Promise<void> {
+    const folders = await this.getSmartFolders()
+    await chrome.storage.local.set({ smartFolders: folders.filter((f) => f.id !== id) })
   },
 }

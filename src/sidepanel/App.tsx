@@ -9,11 +9,12 @@ import { SyncObsidian } from './views/SyncObsidian'
 import { CollectionMode } from './views/CollectionMode'
 import { AuthSync } from './views/AuthSync'
 import { ExportNotes } from './views/ExportNotes'
+import { KnowledgeGraph } from './views/KnowledgeGraph'
 import { Button } from './components/ui/button'
-import { Search, FolderOpen, Sparkles, Home, Settings, FolderSync, Inbox, Sun, Moon, Cloud, Download } from 'lucide-react'
+import { Search, FolderOpen, Sparkles, Home, Settings, FolderSync, Inbox, Sun, Moon, Cloud, Download, Network } from 'lucide-react'
 import { useTheme } from '../lib/useTheme'
 
-type View = 'home' | 'snippets' | 'agent' | 'sync' | 'collection' | 'auth' | 'export'
+type View = 'home' | 'snippets' | 'agent' | 'sync' | 'collection' | 'auth' | 'export' | 'graph'
 
 export default function App() {
   const { theme, toggleTheme } = useTheme()
@@ -123,6 +124,7 @@ export default function App() {
           {[
             { id: 'sync' as const, icon: FolderSync, label: '同步' },
             { id: 'auth' as const, icon: Cloud, label: '云同步' },
+            { id: 'graph' as const, icon: Network, label: '图谱' },
           ].map(({ id, icon: Icon, label }) => (
             <button
               key={id}
@@ -202,6 +204,12 @@ export default function App() {
             folders={folders}
             activeFolder={activeFolder}
             showToast={showToast}
+          />
+        )}
+        {view === 'graph' && (
+          <KnowledgeGraph
+            snippets={snippets}
+            onBack={() => setView('home')}
           />
         )}
       </main>

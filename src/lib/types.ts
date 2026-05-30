@@ -150,3 +150,20 @@ export interface AgentContext {
   updateSnippet: (id: string, changes: Partial<Snippet>) => Promise<void>
   addSnippet: (snippet: Snippet) => Promise<void>
 }
+
+// ── 智能文件夹 ──────────────────────────────────────────
+
+/** 智能文件夹规则 */
+export interface SmartFolderRule {
+  field: 'source' | 'tags' | 'title' | 'answer'
+  operator: 'contains' | 'equals' | 'startsWith'
+  value: string
+}
+
+/** 智能文件夹 */
+export interface SmartFolder {
+  id: string
+  name: string
+  rules: SmartFolderRule[]
+  operator: 'and' | 'or'
+}

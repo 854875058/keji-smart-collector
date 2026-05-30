@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react'
-import type { Snippet, AgentConfig } from '../../lib/types'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import type { Snippet, AgentConfig, SmartFolder, SmartFolderRule } from '../../lib/types'
 import { storage } from '../../lib/storage'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -7,11 +7,12 @@ import {
   Search, Star, Trash2, ExternalLink, Copy, FolderOpen,
   ArrowLeft, Tag, X, CheckSquare, Square, MinusSquare,
   ArrowUpDown, ChevronDown, Save, FolderInput, Filter,
-  Sparkles, Loader2, GitCompareArrows,
+  Sparkles, Loader2, GitCompareArrows, Plus, Network,
 } from 'lucide-react'
-import { formatDate, highlightText, type SearchScope } from '../../lib/utils'
+import { formatDate, highlightText, filterBySearch, type SearchScope } from '../../lib/utils'
 import { findRelatedNotes } from '../../agent/relatedNotes'
 import { batchAutoTag, batchFindDuplicates } from '../../agent/batchOps'
+import { getSmartFolderSnippets } from '../../agent/smartFolders'
 
 /** 在新标签页打开 web.html 笔记详情 */
 async function openNoteInWebTab(snippetId: string) {
@@ -82,9 +83,82 @@ export function SnippetList({
   const [duplicateResults, setDuplicateResults] = useState<{ group1: string; group2: string; reason: string }[]>([])
   const [showDuplicatePanel, setShowDuplicatePanel] = useState(false)
 
+  // ── 智能文件夹状态 ──────────────────────────────────────
+  const [smartFolders, setSmartFolders] = useState<SmartFolder[]>([])
+  const [activeSmartFolderId, setActiveSmartFolderId] = useState<string | null>(null)
+  const [showCreateSmartFolder, setShowCreateSmartFolder] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [newFolderOperator, setNewFolderOperator] = useState<'and' | 'or'>('and')
+  const [newFolderRules, setNewFolderRules] = useState<SmartFolderRule[]>([
+    { field: 'title', operator: 'contains', value: '' },
+  ])
+
+  // 加载智能文件夹
+  useEffect(() => {
+    storage.getSmartFolders().then(setSmartFolders)
+    const listener = (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      if (changes.smartFolders) setSmartFolders(changes.smartFolders.newValue || [])
+    }
+    chrome.storage.onChanged.addListener(listener)
+    return () => chrome.storage.onChanged.removeListener(listener)
+  }, [])
+
+  // 当前激活的智能文件夹
+  const activeSmartFolder = useMemo(
+    () => (activeSmartFolderId ? smartFolders.find((f) => f.id === activeSmartFolderId) || null : null),
+    [smartFolders, activeSmartFolderId]
+  )
+
+  // 智能文件夹匹配的笔记
+  const smartFolderSnippets = useMemo(() => {
+    if (!activeSmartFolder) return null
+    return getSmartFolderSnippets(allSnippets, activeSmartFolder)
+  }, [allSnippets, activeSmartFolder])
+
+  // 实际显示的笔记（智能文件夹优先）
+  const displaySnippets = useMemo(() => {
+    if (smartFolderSnippets !== null) {
+      // 智能文件夹模式：搜索作用于匹配结果
+      if (searchQuery.trim()) {
+        const matches = filterBySearch(smartFolderSnippets, searchQuery, searchScope)
+        return matches.map((m) => m.snippet)
+      }
+      return smartFolderSnippets
+    }
+    return snippets
+  }, [smartFolderSnippets, snippets, searchQuery, searchScope])
+
+  // 创建智能文件夹
+  const handleCreateSmartFolder = useCallback(async () => {
+    const name = newFolderName.trim()
+    if (!name) return
+    const validRules = newFolderRules.filter((r) => r.value.trim() !== '')
+    if (validRules.length === 0) return
+
+    const folder: SmartFolder = {
+      id: `sf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      rules: validRules,
+      operator: newFolderOperator,
+    }
+    await storage.addSmartFolder(folder)
+    setShowCreateSmartFolder(false)
+    setNewFolderName('')
+    setNewFolderRules([{ field: 'title', operator: 'contains', value: '' }])
+    setNewFolderOperator('and')
+    showToast('success', `已创建智能文件夹「${name}」`)
+  }, [newFolderName, newFolderRules, newFolderOperator, showToast])
+
+  // 删除智能文件夹
+  const handleDeleteSmartFolder = useCallback(async (id: string) => {
+    await storage.deleteSmartFolder(id)
+    if (activeSmartFolderId === id) setActiveSmartFolderId(null)
+    showToast('success', '已删除智能文件夹')
+  }, [activeSmartFolderId, showToast])
+
   // 排序后的列表
   const sortedSnippets = useMemo(() => {
-    const sorted = [...snippets]
+    const sorted = [...displaySnippets]
     switch (sortOption) {
       case 'time-desc':
         sorted.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -100,7 +174,7 @@ export function SnippetList({
         break
     }
     return sorted
-  }, [snippets, sortOption])
+  }, [displaySnippets, sortOption])
 
   // 当前详情笔记（从全部笔记中查找，支持从相关笔记跳转到不在筛选列表中的笔记）
   const detailSnippet = useMemo(
@@ -275,7 +349,7 @@ export function SnippetList({
         {/* 搜索匹配数量 */}
         {searchQuery.trim() && (
           <div className="mt-1.5 text-xs text-slate-400">
-            找到 {snippets.length} 条匹配笔记
+            找到 {sortedSnippets.length} 条匹配笔记
           </div>
         )}
       </div>
@@ -482,6 +556,171 @@ export function SnippetList({
           </button>
         ))}
       </div>
+
+      {/* 智能文件夹 */}
+      {(smartFolders.length > 0 || showCreateSmartFolder) && (
+        <div className="px-3 py-2 border-b border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800">
+          <div className="flex items-center gap-1 mb-1.5">
+            <Sparkles className="h-3 w-3 text-violet-500" />
+            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">智能文件夹</span>
+          </div>
+          <div className="flex gap-1 flex-wrap">
+            {smartFolders.map((sf) => {
+              const matchCount = getSmartFolderSnippets(allSnippets, sf).length
+              return (
+                <div key={sf.id} className="inline-flex items-center group">
+                  <button
+                    onClick={() => {
+                      setActiveSmartFolderId(activeSmartFolderId === sf.id ? null : sf.id)
+                      onFolderChange('') // 清除普通文件夹选择
+                    }}
+                    className={`inline-flex items-center gap-1 rounded-l-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                      activeSmartFolderId === sf.id
+                        ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-400'
+                        : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {sf.name}
+                    <span className="text-[10px] opacity-60">({matchCount})</span>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteSmartFolder(sf.id) }}
+                    className="rounded-r-full px-1 py-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="删除智能文件夹"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )
+            })}
+            <button
+              onClick={() => setShowCreateSmartFolder(!showCreateSmartFolder)}
+              className="inline-flex items-center gap-0.5 rounded-full px-2 py-1 text-xs text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+            >
+              <Plus className="h-3 w-3" />
+              新建
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 智能文件夹创建表单 */}
+      {showCreateSmartFolder && (
+        <div className="px-3 py-3 border-b border-violet-200 bg-violet-50/50 dark:border-violet-800 dark:bg-violet-900/10">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">新建智能文件夹</span>
+            <div className="flex-1" />
+            <button
+              onClick={() => setShowCreateSmartFolder(false)}
+              className="text-xs text-slate-400 hover:text-slate-600"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <Input
+            className="h-7 text-xs mb-2"
+            placeholder="文件夹名称"
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+          />
+          <div className="flex items-center gap-1 mb-2">
+            <span className="text-[10px] text-slate-500">满足</span>
+            <select
+              value={newFolderOperator}
+              onChange={(e) => setNewFolderOperator(e.target.value as 'and' | 'or')}
+              className="text-[10px] border border-slate-200 rounded px-1 py-0.5 bg-white dark:bg-slate-700 dark:border-slate-600"
+            >
+              <option value="and">全部</option>
+              <option value="or">任一</option>
+            </select>
+            <span className="text-[10px] text-slate-500">条件</span>
+          </div>
+          <div className="space-y-1.5 mb-2">
+            {newFolderRules.map((rule, idx) => (
+              <div key={idx} className="flex items-center gap-1">
+                <select
+                  value={rule.field}
+                  onChange={(e) => {
+                    const updated = [...newFolderRules]
+                    updated[idx] = { ...updated[idx], field: e.target.value as SmartFolderRule['field'] }
+                    setNewFolderRules(updated)
+                  }}
+                  className="text-[10px] border border-slate-200 rounded px-1 py-0.5 bg-white dark:bg-slate-700 dark:border-slate-600"
+                >
+                  <option value="title">标题</option>
+                  <option value="answer">内容</option>
+                  <option value="tags">标签</option>
+                  <option value="source">来源</option>
+                </select>
+                <select
+                  value={rule.operator}
+                  onChange={(e) => {
+                    const updated = [...newFolderRules]
+                    updated[idx] = { ...updated[idx], operator: e.target.value as SmartFolderRule['operator'] }
+                    setNewFolderRules(updated)
+                  }}
+                  className="text-[10px] border border-slate-200 rounded px-1 py-0.5 bg-white dark:bg-slate-700 dark:border-slate-600"
+                >
+                  <option value="contains">包含</option>
+                  <option value="equals">等于</option>
+                  <option value="startsWith">开头是</option>
+                </select>
+                <Input
+                  className="flex-1 h-6 text-[10px]"
+                  placeholder="值"
+                  value={rule.value}
+                  onChange={(e) => {
+                    const updated = [...newFolderRules]
+                    updated[idx] = { ...updated[idx], value: e.target.value }
+                    setNewFolderRules(updated)
+                  }}
+                />
+                {newFolderRules.length > 1 && (
+                  <button
+                    onClick={() => setNewFolderRules(newFolderRules.filter((_, i) => i !== idx))}
+                    className="text-slate-400 hover:text-red-500"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 text-[10px] text-violet-600"
+              onClick={() => setNewFolderRules([...newFolderRules, { field: 'title', operator: 'contains', value: '' }])}
+            >
+              <Plus className="h-3 w-3 mr-0.5" />
+              添加条件
+            </Button>
+            <div className="flex-1" />
+            <Button
+              size="sm"
+              className="h-6 text-[10px]"
+              onClick={handleCreateSmartFolder}
+            >
+              创建
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* 如果没有普通文件夹且没有智能文件夹，显示新建智能文件夹入口 */}
+      {folders.length === 0 && smartFolders.length === 0 && !showCreateSmartFolder && (
+        <div className="px-3 py-2 border-b border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800">
+          <button
+            onClick={() => setShowCreateSmartFolder(true)}
+            className="flex items-center gap-1 text-xs text-violet-500 hover:text-violet-600"
+          >
+            <Plus className="h-3 w-3" />
+            创建智能文件夹
+          </button>
+        </div>
+      )}
 
       {/* 笔记列表 */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
