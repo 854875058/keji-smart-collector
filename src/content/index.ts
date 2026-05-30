@@ -1,6 +1,7 @@
 import { captureMessage, captureFullPage, buildSnippet, captureSelection } from './capture'
 import { getPlatformAdapter, getPlatformName } from './platforms'
 import { initTooltipListener, removeTooltip } from './tooltip'
+import { initShortcuts } from './shortcuts'
 import type { Snippet } from '../lib/types'
 import './styles.css'
 
@@ -128,6 +129,10 @@ try {
   // 注入划词 tooltip
   initTooltipListener()
   console.log('[keji] Tooltip listener initialized')
+
+  // 初始化键盘快捷键
+  initShortcuts(platformName)
+  console.log('[keji] Shortcuts initialized')
 
   // 根据平台注入保存按钮
   const adapter = getPlatformAdapter()

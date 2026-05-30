@@ -47,6 +47,29 @@
       ]
     }
   ],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+K",
+        "mac": "Alt+Shift+K"
+      },
+      "description": "打开可记侧边栏"
+    },
+    "save-page": {
+      "suggested_key": {
+        "default": "Alt+Shift+S",
+        "mac": "Alt+Shift+S"
+      },
+      "description": "保存当前页面到可记"
+    },
+    "save-selection": {
+      "suggested_key": {
+        "default": "Alt+Shift+A",
+        "mac": "Alt+Shift+A"
+      },
+      "description": "保存选中内容到可记"
+    }
+  },
   "icons": {
     "16": "app-icon-16.png",
     "32": "app-icon-16.png",

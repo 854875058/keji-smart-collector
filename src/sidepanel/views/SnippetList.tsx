@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import type { Snippet, AgentConfig, SmartFolder, SmartFolderRule } from '../../lib/types'
 import { storage } from '../../lib/storage'
 import { Button } from '../components/ui/button'
@@ -10,6 +10,7 @@ import {
   Sparkles, Loader2, GitCompareArrows, Plus, Network,
 } from 'lucide-react'
 import { formatDate, highlightText, filterBySearch, type SearchScope } from '../../lib/utils'
+import { replaceWikiLinks } from '../../lib/wikiLink'
 import { findRelatedNotes } from '../../agent/relatedNotes'
 import { batchAutoTag, batchFindDuplicates } from '../../agent/batchOps'
 import { getSmartFolderSnippets } from '../../agent/smartFolders'
@@ -872,6 +873,28 @@ function NoteDetailInline({
     [snippet, allSnippets]
   )
 
+  // WikiLink 查找回调
+  const findSnippetId = useCallback((title: string): string | undefined => {
+    const found = allSnippets.find((s) => s.title === title)
+    return found?.id
+  }, [allSnippets])
+
+  // WikiLink 渲染后处理点击
+  const contentRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = contentRef.current
+    if (!el) return
+    const handler = (e: Event) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'A' && target.dataset.snippetId) {
+        e.preventDefault()
+        onSelectNote(target.dataset.snippetId)
+      }
+    }
+    el.addEventListener('click', handler)
+    return () => el.removeEventListener('click', handler)
+  }, [onSelectNote])
+
   const handleAddTag = useCallback(async () => {
     const newTag = tagInput.trim()
     if (!newTag) return
@@ -1044,9 +1067,17 @@ function NoteDetailInline({
       {/* 内容 */}
       <div className="flex-1 overflow-y-auto px-3 py-2">
         <div className="text-xs text-slate-400 mb-1 dark:text-slate-500">回答</div>
-        <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed dark:text-slate-200">
-          {snippet.answer}
-        </div>
+        <div
+          ref={contentRef}
+          className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed dark:text-slate-200 wiki-link-content"
+          dangerouslySetInnerHTML={{
+            __html: replaceWikiLinks(
+              snippet.answer.replace(/\n/g, '<br/>'),
+              findSnippetId,
+              'text-emerald-600 hover:text-emerald-700 underline underline-offset-2 cursor-pointer'
+            ),
+          }}
+        />
       </div>
 
       {/* 相关笔记 */}

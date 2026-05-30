@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import type { Snippet } from './types'
+import { fullTextIndex } from './fulltext'
 
 /** 搜索范围 */
 export type SearchScope = 'all' | 'title' | 'content' | 'tags'
@@ -76,51 +77,30 @@ export function detectPlatform(): string {
   return 'Web'
 }
 
-/** 简单 BM25 搜索 */
+/**
+ * BM25 搜索 - 使用全文索引（支持中文 bigram）
+ * 如果索引为空则回退到简单搜索
+ */
 export function bm25Search(
   query: string,
   documents: { id: string; text: string }[],
   topK = 5
 ): { id: string; score: number }[] {
-  const queryTerms = query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((t) => t.length > 1)
-  if (queryTerms.length === 0) return []
+  const stats = fullTextIndex.getStats()
+  if (stats.totalDocs === 0 && documents.length > 0) {
+    fullTextIndex.buildIndex(documents)
+  }
+  const results = fullTextIndex.search(query, topK)
+  return results.map((r) => ({ id: r.docId, score: r.score }))
+}
 
-  const avgDl =
-    documents.reduce((sum, d) => sum + d.text.length, 0) / documents.length || 1
-  const k1 = 1.5
-  const b = 0.75
-
-  const scores = documents.map((doc) => {
-    const text = doc.text.toLowerCase()
-    const dl = text.length
-    let score = 0
-
-    for (const term of queryTerms) {
-      // 简单的子串匹配计数
-      let tf = 0
-      let idx = text.indexOf(term)
-      while (idx !== -1) {
-        tf++
-        idx = text.indexOf(term, idx + 1)
-      }
-      if (tf === 0) continue
-
-      const idf = Math.log(
-        (documents.length - tf + 0.5) / (tf + 0.5) + 1
-      )
-      score += (idf * (tf * (k1 + 1))) / (tf + k1 * (1 - b + (b * dl) / avgDl))
-    }
-
-    return { id: doc.id, score }
-  })
-
-  return scores
-    .filter((s) => s.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK)
+/** 重建全文索引 */
+export function rebuildFullTextIndex(snippets: Snippet[]): void {
+  const documents = snippets.map((s) => ({
+    id: s.id,
+    text: [s.title, s.question, s.answer, s.summary || '', ...(s.tags || [])].join(' '),
+  }))
+  fullTextIndex.buildIndex(documents)
 }
 
 /** 获取 snippet 指定范围的文本内容 */

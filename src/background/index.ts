@@ -171,4 +171,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 })
 
+// ── 快捷键命令处理 ──────────────────────────────────────
+chrome.commands?.onCommand?.addListener((command: string) => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0]
+    if (!tab?.id) return
+
+    if (command === 'save-page') {
+      chrome.tabs.sendMessage(tab.id, { type: 'COMMAND_SAVE_PAGE' })
+    } else if (command === 'save-selection') {
+      chrome.tabs.sendMessage(tab.id, { type: 'COMMAND_SAVE_SELECTION' })
+    }
+  })
+})
+
 console.log('[keji] Background worker active')
