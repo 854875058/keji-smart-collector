@@ -181,7 +181,7 @@ export function AgentView({ snippets, folders }: Props) {
 const AI_PRESETS = [
   { id: 'openai', name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', defaultModel: 'gpt-4o-mini' },
   { id: 'deepseek', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', defaultModel: 'deepseek-chat' },
-  { id: 'claude', name: 'Claude (Anthropic)', baseUrl: 'https://api.anthropic.com/v1', defaultModel: 'claude-sonnet-4-20250514' },
+  { id: 'claude', name: 'Claude (Anthropic)', baseUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-4-20250514' },
   { id: 'gemini', name: 'Gemini (OpenAI 兼容)', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', defaultModel: 'gemini-2.0-flash' },
   { id: 'siliconflow', name: 'SiliconFlow', baseUrl: 'https://api.siliconflow.cn/v1', defaultModel: 'Qwen/Qwen2.5-7B-Instruct' },
   { id: 'moonshot', name: 'Moonshot (Kimi)', baseUrl: 'https://api.moonshot.cn/v1', defaultModel: 'moonshot-v1-8k' },
@@ -352,24 +352,37 @@ ${notesContext || '暂无相关笔记'}
 请用中文回答，保持简洁有用。如果问题涉及笔记内容，优先基于已有笔记回答。`
 }
 
+/** 判断是否使用 Anthropic API 格式 */
+function isAnthropicFormat(baseUrl: string): boolean {
+  const lower = baseUrl.toLowerCase()
+  return lower.includes('anthropic') || lower.includes('claude')
+}
+
 async function callAI(
   config: AgentConfig,
   messages: { role: string; content: string }[]
 ): Promise<string> {
-  // 自动处理各种 base URL 格式
-  let base = config.baseUrl.replace(/\/+$/, '')
-  // 如果已经包含完整路径，不再追加
-  if (base.endsWith('/chat/completions')) {
-    // 已经是完整路径
-  } else if (base.endsWith('/v1') || base.endsWith('/v4')) {
-    base = `${base}/chat/completions`
-  } else {
-    // 尝试追加 /chat/completions
-    base = `${base}/chat/completions`
+  if (isAnthropicFormat(config.baseUrl)) {
+    return callAnthropic(config, messages)
   }
-  const url = base
+  return callOpenAI(config, messages)
+}
 
-  const resp = await fetch(url, {
+/** OpenAI 兼容格式 */
+async function callOpenAI(
+  config: AgentConfig,
+  messages: { role: string; content: string }[]
+): Promise<string> {
+  let base = config.baseUrl.replace(/\/+$/, '')
+  if (!base.endsWith('/chat/completions')) {
+    if (base.endsWith('/v1') || base.endsWith('/v4')) {
+      base = `${base}/chat/completions`
+    } else {
+      base = `${base}/chat/completions`
+    }
+  }
+
+  const resp = await fetch(base, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -391,4 +404,50 @@ async function callAI(
   const data = await resp.json()
   if (data.error) throw new Error(data.error.message || JSON.stringify(data.error))
   return data.choices?.[0]?.message?.content || ''
+}
+
+/** Anthropic 格式 */
+async function callAnthropic(
+  config: AgentConfig,
+  messages: { role: string; content: string }[]
+): Promise<string> {
+  let base = config.baseUrl.replace(/\/+$/, '')
+  // 拼接 Anthropic 端点
+  if (!base.endsWith('/messages')) {
+    if (base.endsWith('/v1')) {
+      base = `${base}/messages`
+    } else {
+      base = `${base}/v1/messages`
+    }
+  }
+
+  // 提取 system message
+  const systemMsg = messages.find((m) => m.role === 'system')?.content || ''
+  const nonSystem = messages
+    .filter((m) => m.role !== 'system')
+    .map((m) => ({ role: m.role === 'user' ? 'user' as const : 'assistant' as const, content: m.content }))
+
+  const resp = await fetch(base, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': config.apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: config.model,
+      system: systemMsg,
+      messages: nonSystem,
+      max_tokens: config.maxTokens ?? 2048,
+    }),
+  })
+
+  if (!resp.ok) {
+    const errBody = await resp.text().catch(() => '')
+    throw new Error(`API 请求失败 (${resp.status}): ${errBody.slice(0, 200)}`)
+  }
+
+  const data = await resp.json()
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error))
+  return data.content?.[0]?.text || ''
 }
