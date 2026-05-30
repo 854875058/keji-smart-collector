@@ -13,7 +13,6 @@ import {
   FolderPlus, MoreHorizontal, Sun, Moon, Network,
 } from 'lucide-react'
 import { useTheme } from '../lib/useTheme'
-import { KnowledgeGraph } from '../sidepanel/views/KnowledgeGraph'
 
 export default function WebApp() {
   const { theme, toggleTheme } = useTheme()
@@ -26,7 +25,6 @@ export default function WebApp() {
   const [highlightId, setHighlightId] = useState<string | null>(null)
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
-  const [showGraph, setShowGraph] = useState(false)
   const [moveTarget, setMoveTarget] = useState<{ snippetId: string; folder: string | null } | null>(null)
   const supabaseRef = useRef(createSupabaseClient())
 
@@ -143,12 +141,15 @@ export default function WebApp() {
           <div className="flex items-center gap-3">
             <div className="text-sm text-slate-500 dark:text-slate-400">本地存储 · 可离线访问</div>
             <button
-              onClick={() => setShowGraph(true)}
+              onClick={() => {
+                // 尝试用 obsidian:// URI 打开
+                window.location.href = 'obsidian://open'
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-colors border border-slate-200 dark:border-slate-700"
-              title="知识图谱"
+              title="打开 Obsidian（查看图谱等高级功能）"
             >
-              <Network className="h-4 w-4" />
-              图谱
+              <ExternalLink className="h-4 w-4" />
+              Obsidian
             </button>
             <button
               onClick={toggleTheme}
@@ -238,15 +239,6 @@ export default function WebApp() {
         </div>
       </div>
 
-      {/* 知识图谱全屏覆盖 */}
-      {showGraph && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-slate-900">
-          <KnowledgeGraph
-            snippets={snippets}
-            onBack={() => setShowGraph(false)}
-          />
-        </div>
-      )}
     </div>
   )
 }
