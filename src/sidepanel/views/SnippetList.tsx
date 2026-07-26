@@ -14,6 +14,7 @@ import { replaceWikiLinks } from '../../lib/wikiLink'
 import { findRelatedNotes } from '../../agent/relatedNotes'
 import { batchAutoTag, batchFindDuplicates } from '../../agent/batchOps'
 import { getSmartFolderSnippets } from '../../agent/smartFolders'
+import NoteAIPanel from '../components/NoteAIPanel'
 
 /** 在新标签页打开 web.html 笔记详情 */
 async function openNoteInWebTab(snippetId: string) {
@@ -1079,6 +1080,16 @@ function NoteDetailInline({
           }}
         />
       </div>
+
+      {/* 笔记 AI：思维导图 + 追问 */}
+      <NoteAIPanel
+        snippet={snippet}
+        onUpdated={() => {
+          /* storage.onChanged 会驱动 App 刷新，这里无需额外动作 */
+        }}
+        showToast={showToast}
+        compact
+      />
 
       {/* 相关笔记 */}
       {relatedNotes.length > 0 && (

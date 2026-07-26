@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = 'https://fljvpmoxqgmwpueydkds.supabase.co'
-const SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsanZwbW94cWdtd3B1ZXlka2RzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTIwNjksImV4cCI6MjA5MDA2ODA2OX0.D5wzfd3fzvn0iekF3QWkq9U-GwDasG5sJovvJP8Ltbc'
+// 与服务端 AI 代理（keji.asia/api）配套的 Supabase 项目。
+// anon/publishable key 设计上可公开，真正的访问控制依赖该项目的 RLS 策略。
+const SUPABASE_URL = 'https://wiubfypzgealjzrjcvxw.supabase.co'
+const SUPABASE_ANON_KEY = 'sb_publishable_I6-7bF41BtGhYSO5P-i8hA_qEk6taWS'
 
 export function createSupabaseClient() {
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

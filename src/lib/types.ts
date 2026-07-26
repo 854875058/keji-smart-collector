@@ -21,6 +21,29 @@ export interface Annotation {
   quote?: string
 }
 
+// ── 笔记 AI 产物 ──────────────────────────────────────────
+
+/** 思维导图（以 Markdown 缩进列表存储，渲染时解析为树） */
+export interface MindMap {
+  markdown: string
+  updatedAt: string
+  model?: string
+}
+
+/** 单条笔记内的 AI 问答消息 */
+export interface NoteChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  createdAt: string
+}
+
+/** 挂在笔记上的 AI 产物，字段全部可选以兼容历史数据 */
+export interface SnippetAI {
+  mindMap?: MindMap
+  chats?: NoteChatMessage[]
+}
+
 /** 笔记/收藏片段 */
 export interface Snippet {
   id: string
@@ -39,6 +62,8 @@ export interface Snippet {
   media?: MediaAttachment
   annotations?: Annotation[]
   summary?: string
+  /** AI 生成的思维导图与问答记录 */
+  ai?: SnippetAI
 }
 
 /** AI 提供商预设 */
@@ -166,4 +191,23 @@ export interface SmartFolder {
   name: string
   rules: SmartFolderRule[]
   operator: 'and' | 'or'
+}
+
+// ── AI 免费额度与 Pro ──────────────────────────────────────
+
+/** 每日 AI 免费额度用量（服务端为准，本地仅做缓存展示） */
+export interface AIUsage {
+  /** 本地日期键，形如 2026-07-26，用于跨天自动归零 */
+  date: string
+  used: number
+  limit: number
+  /** 缓存归属的用户，切换账号时作废 */
+  userId?: string
+}
+
+/** 账号权益 */
+export interface ProStatus {
+  isPro: boolean
+  /** ISO 时间；免费用户为空 */
+  expiresAt?: string
 }

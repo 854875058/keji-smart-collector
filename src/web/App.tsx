@@ -7,6 +7,7 @@ import { Button } from '../sidepanel/components/ui/button'
 import { Input } from '../sidepanel/components/ui/input'
 import { Textarea } from '../sidepanel/components/ui/textarea'
 import { RichTextEditor } from '../sidepanel/components/RichTextEditor'
+import NoteAIPanel from '../sidepanel/components/NoteAIPanel'
 import {
   Search, FolderOpen, Star, Trash2, ExternalLink, Copy,
   Pencil, X, Save, FileText, Plus, ChevronDown, ChevronRight,
@@ -505,6 +506,16 @@ function NoteDetail({
             dangerouslySetInnerHTML={{ __html: snippet.contentHtml || formatAnswer(snippet.answer) }}
           />
         )}
+      </div>
+      {/* 笔记 AI：思维导图 + 追问 */}
+      <div className="mt-6 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden">
+        <NoteAIPanel
+          snippet={snippet}
+          onUpdated={() => {
+            /* storage.onChanged 会驱动列表刷新 */
+          }}
+          showToast={(_type, message) => showToast(message)}
+        />
       </div>
     </div>
   )

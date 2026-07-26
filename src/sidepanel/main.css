@@ -30,3 +30,121 @@
   --color-accent: #34d399;
   --color-accent-light: #064e3b;
 }
+
+/* ── 思维导图：嵌套列表 + CSS 连线 ────────────────────── */
+.keji-mind-map {
+  padding: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(236, 253, 245, 0.92), rgba(255, 255, 255, 0.96)),
+    radial-gradient(circle at 0 0, rgba(16, 185, 129, 0.13), transparent 32%);
+  overflow-x: auto;
+}
+
+.keji-mind-root,
+.keji-mind-label {
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  background: rgba(255, 255, 255, 0.92);
+  color: #0f172a;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+}
+
+.keji-mind-root {
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.keji-mind-children {
+  position: relative;
+  margin: 10px 0 0 18px;
+  padding-left: 18px;
+  border-left: 1px solid rgba(16, 185, 129, 0.22);
+  list-style: none;
+}
+
+.keji-mind-children--root { margin-top: 14px; }
+
+.keji-mind-node {
+  position: relative;
+  margin: 8px 0;
+}
+
+.keji-mind-node::before {
+  content: "";
+  position: absolute;
+  top: 16px;
+  left: -18px;
+  width: 14px;
+  border-top: 1px solid rgba(16, 185, 129, 0.22);
+}
+
+.keji-mind-label {
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.keji-mind-label-depth-1 {
+  border-color: rgba(5, 150, 105, 0.28);
+  background: rgba(236, 253, 245, 0.98);
+  font-weight: 650;
+}
+.keji-mind-label-depth-2 { border-color: rgba(20, 184, 166, 0.22); }
+.keji-mind-label-depth-3,
+.keji-mind-label-depth-4 { color: rgba(51, 65, 85, 0.92); }
+
+/* 紧凑排版：侧边栏宽度有限 */
+.keji-mind-map--compact {
+  max-height: 320px;
+  padding: 8px;
+  border-radius: 10px;
+}
+.keji-mind-map--compact .keji-mind-root {
+  padding: 5px 7px;
+  border-radius: 9px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+.keji-mind-map--compact .keji-mind-label {
+  padding: 4px 6px;
+  border-radius: 8px;
+  font-size: 0.68rem;
+  line-height: 1.3;
+}
+.keji-mind-map--compact .keji-mind-children {
+  margin: 5px 0 0 10px;
+  padding-left: 10px;
+}
+.keji-mind-map--compact .keji-mind-children--root { margin-top: 7px; }
+.keji-mind-map--compact .keji-mind-node { margin: 4px 0; }
+.keji-mind-map--compact .keji-mind-node::before {
+  top: 11px;
+  left: -10px;
+  width: 8px;
+}
+
+/* 深色模式（同事版本没有，这里补齐以匹配我们的主题体系） */
+.dark .keji-mind-map {
+  border-color: rgba(51, 65, 85, 0.9);
+  background:
+    linear-gradient(135deg, rgba(6, 78, 59, 0.35), rgba(30, 41, 59, 0.96)),
+    radial-gradient(circle at 0 0, rgba(52, 211, 153, 0.12), transparent 32%);
+}
+.dark .keji-mind-root,
+.dark .keji-mind-label {
+  border-color: rgba(52, 211, 153, 0.22);
+  background: rgba(30, 41, 59, 0.94);
+  color: #f1f5f9;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+.dark .keji-mind-children { border-left-color: rgba(52, 211, 153, 0.26); }
+.dark .keji-mind-node::before { border-top-color: rgba(52, 211, 153, 0.26); }
+.dark .keji-mind-label-depth-1 { background: rgba(6, 78, 59, 0.55); }
+.dark .keji-mind-label-depth-3,
+.dark .keji-mind-label-depth-4 { color: rgba(203, 213, 225, 0.92); }
