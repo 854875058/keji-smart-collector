@@ -13,6 +13,7 @@ import { formatDate, highlightText, filterBySearch, escapeHtml, type SearchScope
 import { replaceWikiLinks } from '../../lib/wikiLink'
 import { findRelatedNotes } from '../../agent/relatedNotes'
 import { batchAutoTag, batchFindDuplicates } from '../../agent/batchOps'
+import { isByokReady } from '../../agent/channel'
 import { getSmartFolderSnippets } from '../../agent/smartFolders'
 import NoteAIPanel from '../components/NoteAIPanel'
 
@@ -235,8 +236,8 @@ export function SnippetList({
   // ── AI 批量操作 ──────────────────────────────────────
   const handleBatchAutoTag = useCallback(async () => {
     const config = await storage.getAgentConfig()
-    if (!config?.apiKey) {
-      showToast('error', '请先在 AI 页面配置 API Key')
+    if (!isByokReady(config)) {
+      showToast('error', '批量 AI 操作需要自备 API Key，请先在「智能体」页配置 API 地址和 Key')
       return
     }
     const selectedSnippets = sortedSnippets.filter((s) => selectedIds.has(s.id))
@@ -244,7 +245,7 @@ export function SnippetList({
 
     setBatchAiLoading(true)
     try {
-      const results = await batchAutoTag(selectedSnippets, config)
+      const results = await batchAutoTag(selectedSnippets, config!)
       let updated = 0
       for (const [id, { tags, summary }] of results) {
         await storage.updateSnippet(id, { tags, summary })
@@ -260,8 +261,8 @@ export function SnippetList({
 
   const handleBatchFindDuplicates = useCallback(async () => {
     const config = await storage.getAgentConfig()
-    if (!config?.apiKey) {
-      showToast('error', '请先在 AI 页面配置 API Key')
+    if (!isByokReady(config)) {
+      showToast('error', '批量 AI 操作需要自备 API Key，请先在「智能体」页配置 API 地址和 Key')
       return
     }
     const selectedSnippets = sortedSnippets.filter((s) => selectedIds.has(s.id))
@@ -272,7 +273,7 @@ export function SnippetList({
 
     setBatchAiLoading(true)
     try {
-      const results = await batchFindDuplicates(selectedSnippets, config)
+      const results = await batchFindDuplicates(selectedSnippets, config!)
       setDuplicateResults(results)
       setShowDuplicatePanel(true)
       if (results.length === 0) {

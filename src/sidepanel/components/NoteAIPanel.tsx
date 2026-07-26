@@ -9,6 +9,7 @@ import {
   isQuotaExhausted,
   PRO_URL,
 } from '../../lib/aiProxy'
+import { resolveChannel, NO_CHANNEL_MESSAGE, type AIChannel } from '../../agent/channel'
 import MindMapView from './MindMapView'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -32,7 +33,7 @@ interface NoteAIPanelProps {
   compact?: boolean
 }
 
-/** 单条笔记的 AI 面板：思维导图 + 追问，额度走服务端代理 */
+/** 单条笔记的 AI 面板：思维导图 + 追问。自备 Key 时不受免费额度限制 */
 export default function NoteAIPanel({
   snippet,
   onUpdated,
@@ -40,6 +41,7 @@ export default function NoteAIPanel({
   compact,
 }: NoteAIPanelProps) {
   const [usage, setUsage] = useState<AIUsage | null>(null)
+  const [channel, setChannel] = useState<AIChannel | null>(null)
   const [mindLoading, setMindLoading] = useState(false)
   const [chatLoading, setChatLoading] = useState(false)
   const [question, setQuestion] = useState('')
@@ -47,31 +49,44 @@ export default function NoteAIPanel({
 
   const mindMap = snippet.ai?.mindMap
   const chats = snippet.ai?.chats || []
-  const exhausted = isQuotaExhausted(usage)
+  // 自备 Key 直连模型服务商，不存在免费额度用尽的情况
+  const byok = channel === 'byok'
+  const exhausted = !byok && isQuotaExhausted(usage)
 
-  // 先用本地缓存快速渲染，再向服务端核对
+  // 判定通道；只有走服务端代理时才需要额度信息
   useEffect(() => {
     let alive = true
-    getCachedUsage().then((cached) => {
-      if (alive && cached) setUsage(cached)
-    })
-    fetchUsage()
-      .then((fresh) => {
-        if (alive) setUsage(fresh)
+    resolveChannel()
+      .then(({ channel: ch }) => {
+        if (!alive) return
+        setChannel(ch)
+        if (ch !== 'proxy') return
+        getCachedUsage().then((cached) => {
+          if (alive && cached) setUsage(cached)
+        })
+        fetchUsage()
+          .then((fresh) => {
+            if (alive) setUsage(fresh)
+          })
+          .catch(() => undefined)
       })
-      .catch(() => undefined)
+      .catch(() => {
+        // 两种方式都没配置：保持 null，操作时给出引导文案
+        if (alive) setChannel(null)
+      })
     return () => {
       alive = false
     }
   }, [])
 
   const refreshUsage = useCallback(async () => {
+    if (byok) return
     try {
       setUsage(await fetchUsage())
     } catch {
       // 未登录或网络异常时静默，操作时会给出明确提示
     }
-  }, [])
+  }, [byok])
 
   const handleGenerateMindMap = useCallback(async () => {
     if (mindLoading) return
@@ -161,24 +176,41 @@ export default function NoteAIPanel({
           AI 助手
         </span>
         <div className="flex-1" />
-        {usage && (
+        {byok ? (
           <span
-            className={`text-[10px] ${
-              exhausted ? 'text-red-500' : 'text-slate-400 dark:text-slate-500'
-            }`}
-            title={exhausted ? QUOTA_HINT : '每日 0 点自动刷新'}
+            className="text-[10px] text-emerald-600 dark:text-emerald-400"
+            title="正在使用你在「智能体」页配置的 API Key，不消耗每日免费额度"
           >
-            今日 {usage.used} / {usage.limit}
+            自备 Key
           </span>
+        ) : (
+          <>
+            {usage && (
+              <span
+                className={`text-[10px] ${
+                  exhausted ? 'text-red-500' : 'text-slate-400 dark:text-slate-500'
+                }`}
+                title={exhausted ? QUOTA_HINT : '每日 0 点自动刷新'}
+              >
+                今日 {usage.used} / {usage.limit}
+              </span>
+            )}
+            <button
+              onClick={refreshUsage}
+              className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400"
+              title="刷新额度"
+            >
+              <RefreshCw className="h-3 w-3" />
+            </button>
+          </>
         )}
-        <button
-          onClick={refreshUsage}
-          className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400"
-          title="刷新额度"
-        >
-          <RefreshCw className="h-3 w-3" />
-        </button>
       </div>
+
+      {channel === null && (
+        <div className="mb-2 px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400">
+          {NO_CHANNEL_MESSAGE}
+        </div>
+      )}
 
       {exhausted && (
         <button

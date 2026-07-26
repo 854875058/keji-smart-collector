@@ -1,5 +1,5 @@
 import type { Snippet, MindMap, NoteChatMessage } from '../lib/types'
-import { proxyChat, extractText, fetchUsage } from '../lib/aiProxy'
+import { chat, refreshQuotaIfUsed } from './channel'
 
 /** 供 AI 阅读的笔记正文，过长则截断 */
 function noteContext(snippet: Snippet, maxChars = 6000): string {
@@ -36,22 +36,22 @@ function sanitizeMindMapMarkdown(raw: string): string {
   return lines.join('\n').trim()
 }
 
-/** 生成思维导图（消耗一次免费额度） */
+/** 生成思维导图（走服务端代理时消耗一次免费额度） */
 export async function generateMindMap(snippet: Snippet): Promise<MindMap> {
-  const resp = await proxyChat({
+  const { text, model, usedQuota } = await chat({
     temperature: 0.3,
     messages: [{ role: 'user', content: mindMapPrompt(snippet) }],
   })
-  const markdown = sanitizeMindMapMarkdown(extractText(resp))
+  const markdown = sanitizeMindMapMarkdown(text)
   if (!markdown) {
     // 额度可能已被服务端扣除，刷新一次以保证 UI 显示准确
-    await fetchUsage().catch(() => undefined)
+    await refreshQuotaIfUsed(usedQuota)
     throw new Error('AI 未返回有效思维导图')
   }
-  return { markdown, updatedAt: new Date().toISOString(), model: resp?.model }
+  return { markdown, updatedAt: new Date().toISOString(), model }
 }
 
-/** 针对单条笔记提问（消耗一次免费额度） */
+/** 针对单条笔记提问（走服务端代理时消耗一次免费额度） */
 export async function askAboutNote(
   snippet: Snippet,
   history: NoteChatMessage[]
@@ -69,11 +69,10 @@ export async function askAboutNote(
     ...history.map((m) => ({ role: m.role, content: m.content })),
   ]
 
-  const resp = await proxyChat({ temperature: 0.4, messages })
-  const answer = extractText(resp)
-  if (!answer) {
-    await fetchUsage().catch(() => undefined)
+  const { text, model, usedQuota } = await chat({ temperature: 0.4, messages })
+  if (!text) {
+    await refreshQuotaIfUsed(usedQuota)
     throw new Error('AI 未返回有效回答')
   }
-  return { answer, model: resp?.model }
+  return { answer: text, model }
 }
