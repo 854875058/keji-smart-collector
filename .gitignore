@@ -22,3 +22,6 @@ dist/
 # Environment
 .env
 .env.local
+
+# 同事版本的打包压缩包（解压后的内容已入库，压缩包本身无需版本化）
+可记的官网/keji-extension.zip

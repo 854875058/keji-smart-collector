@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "可记 - 智能收藏助手",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "一键保存、整理和搜索来自 ChatGPT、Claude 和 Gemini 的高质量 AI 回答。",
   "permissions": [
     "storage",

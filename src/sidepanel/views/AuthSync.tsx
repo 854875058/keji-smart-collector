@@ -1,13 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import type { Snippet } from '../../lib/types'
+import type { Snippet, AIUsage } from '../../lib/types'
 import { storage } from '../../lib/storage'
 import { createSupabaseClient, mapUser } from '../../lib/supabase'
+import { fetchUsage, PRO_URL, RESET_PASSWORD_URL, SITE_URL } from '../../lib/aiProxy'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import {
   Cloud, LogIn, LogOut, UserPlus, Loader2, CheckCircle, AlertCircle,
-  RefreshCw, Upload, Download, Globe,
+  RefreshCw, Upload, Download, Globe, Crown, ExternalLink,
 } from 'lucide-react'
+
+/** 在新标签页打开外部链接（侧边栏里不能直接跳转） */
+function openExternal(url: string) {
+  if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
+    chrome.tabs.create({ url })
+    return
+  }
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
 
 interface Props {
   snippets: Snippet[]
@@ -31,6 +41,7 @@ export function AuthSync({ snippets, showToast }: Props) {
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null)
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [error, setError] = useState('')
+  const [usage, setUsage] = useState<AIUsage | null>(null)
 
   // 初始化：检查已有 session
   useEffect(() => {
@@ -40,6 +51,8 @@ export function AuthSync({ snippets, showToast }: Props) {
         const { data: { session } } = await supabase.auth.getSession()
         if (session?.user) {
           setUser(mapUser(session.user))
+          // 登录后拉取当日 AI 免费额度
+          fetchUsage().then(setUsage).catch(() => undefined)
         }
       } catch {
         // 忽略初始化错误
@@ -158,6 +171,7 @@ export function AuthSync({ snippets, showToast }: Props) {
       const supabase = createSupabaseClient()
       await supabase.auth.signOut()
       setUser(null)
+      setUsage(null)
       showToast('success', '已退出登录')
     } catch (err: any) {
       showToast('error', '退出失败')
@@ -326,6 +340,14 @@ export function AuthSync({ snippets, showToast }: Props) {
             )}
             {mode === 'login' ? '登录' : '注册'}
           </Button>
+          {mode === 'login' && (
+            <button
+              onClick={() => openExternal(RESET_PASSWORD_URL)}
+              className="w-full text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+            >
+              忘记密码？
+            </button>
+          )}
         </div>
 
         {/* 分隔线 */}
@@ -367,6 +389,62 @@ export function AuthSync({ snippets, showToast }: Props) {
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
+      </div>
+
+      {/* AI 免费额度与 Pro */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            <Crown className="h-4 w-4 text-amber-500" />
+            <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+              AI 免费额度
+            </span>
+          </div>
+          <button
+            onClick={() => fetchUsage().then(setUsage).catch(() => undefined)}
+            className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400"
+            title="刷新额度"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        {usage ? (
+          <>
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-slate-500 dark:text-slate-400">
+                今日已用 {usage.used} / {usage.limit}
+              </span>
+              <span className="text-slate-400">每日 0 点刷新</span>
+            </div>
+            <div className="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  usage.used >= usage.limit ? 'bg-red-500' : 'bg-emerald-500'
+                }`}
+                style={{
+                  width: `${Math.min(100, (usage.used / Math.max(1, usage.limit)) * 100)}%`,
+                }}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="text-xs text-slate-400">额度信息暂不可用</div>
+        )}
+        <Button
+          variant="outline"
+          className="w-full mt-3"
+          onClick={() => openExternal(PRO_URL)}
+        >
+          <Crown className="h-4 w-4 mr-2" />
+          升级 Pro 获取更多额度
+        </Button>
+        <button
+          onClick={() => openExternal(SITE_URL)}
+          className="w-full mt-2 flex items-center justify-center gap-1 text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+        >
+          访问可记官网
+          <ExternalLink className="h-3 w-3" />
+        </button>
       </div>
 
       {/* 同步状态 */}
