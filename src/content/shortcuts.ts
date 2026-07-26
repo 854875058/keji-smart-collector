@@ -14,6 +14,15 @@ interface ShortcutConfig {
 /** 当前平台名称缓存 */
 let _platformName = ''
 
+/**
+ * 整页捕获回调，由 index.ts 注入。
+ *
+ * 早先这里是给 background 发 CAPTURE_PAGE，再由 background 转发回 content
+ * script——绕了一圈且会丢掉原始 requestId，加上 all_frames 会广播到每个
+ * iframe，能否跑通取决于 frame 时序。现在直接在当前 frame 里抓取。
+ */
+let _capturePage: (() => void) | null = null
+
 /** 从 URL 检测平台 */
 function detectPlatformFromUrl(): string {
   const url = window.location.href
@@ -71,18 +80,15 @@ function captureAndSaveSelection(): void {
 
 /** 捕获整页并保存 */
 function captureAndSavePage(): void {
-  // 发送 CAPTURE_PAGE 消息给 content script 的消息处理器
-  const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  chrome.runtime.sendMessage({
-    type: 'CAPTURE_PAGE',
-    mode: 'page',
-    requestId,
-  })
-  showShortcutToast('正在保存页面...', 'info')
+  if (!_capturePage) {
+    showShortcutToast('保存功能未就绪，请刷新页面重试', 'error')
+    return
+  }
+  _capturePage()
 }
 
 /** 在页面上显示快捷键操作反馈 */
-function showShortcutToast(message: string, type: 'success' | 'error' | 'info'): void {
+export function showShortcutToast(message: string, type: 'success' | 'error' | 'info'): void {
   // 移除已有的 toast
   const existing = document.getElementById('keji-shortcut-toast')
   if (existing) existing.remove()
@@ -153,8 +159,12 @@ function matchShortcut(event: KeyboardEvent): ShortcutConfig | undefined {
 }
 
 /** 初始化快捷键监听 */
-export function initShortcuts(platformName?: string): void {
+export function initShortcuts(
+  platformName?: string,
+  capturePage?: () => void
+): void {
   _platformName = platformName || detectPlatformFromUrl()
+  _capturePage = capturePage || null
 
   document.addEventListener('keydown', (event: KeyboardEvent) => {
     // 忽略输入框内的快捷键
@@ -175,8 +185,11 @@ export function initShortcuts(platformName?: string): void {
     }
   })
 
-  // 监听来自 background 的命令消息
+  // 监听来自 background 的命令消息。
+  // background 的 chrome.commands 处理器只发给顶层，但 all_frames 下
+  // 每个 frame 都注册了监听器，这里只在顶层响应，避免重复保存。
   chrome.runtime.onMessage.addListener((message: { type: string }) => {
+    if (window.top !== window) return
     if (message.type === 'COMMAND_SAVE_PAGE') {
       captureAndSavePage()
     } else if (message.type === 'COMMAND_SAVE_SELECTION') {

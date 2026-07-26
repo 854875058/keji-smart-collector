@@ -1,7 +1,12 @@
-import { captureMessage, captureFullPage, buildSnippet, captureSelection } from './capture'
+import {
+  captureMessage,
+  captureFullPage,
+  buildSnippet,
+  captureSelection,
+} from './capture'
 import { getPlatformAdapter, getPlatformName } from './platforms'
 import { initTooltipListener, removeTooltip } from './tooltip'
-import { initShortcuts } from './shortcuts'
+import { initShortcuts, showShortcutToast } from './shortcuts'
 import type { Snippet } from '../lib/types'
 import './styles.css'
 
@@ -73,9 +78,72 @@ function observeAndInject(selector: string) {
   inject()
 }
 
+// ── 整段对话保存 ──────────────────────────────────────
+
+/**
+ * 抓取当前页面的整段对话并保存。
+ *
+ * 若同一会话已收藏过（按 conversationKey 匹配），询问是否覆盖更新，
+ * 避免同一个会话聊到不同阶段各存一条高度重复的笔记。
+ */
+async function saveConversation(): Promise<void> {
+  const snippet = captureFullPage()
+  if (!snippet) {
+    showShortcutToast('未找到可保存的内容', 'error')
+    return
+  }
+
+  const key = snippet.conversation?.conversationKey
+  if (key) {
+    const { snippets } = await chrome.storage.local.get('snippets')
+    const existing = ((snippets || []) as Snippet[]).find(
+      (s) => s.conversation?.conversationKey === key
+    )
+    if (existing) {
+      const prevTurns = existing.conversation?.turnCount ?? 0
+      const nextTurns = snippet.conversation?.turnCount ?? 0
+      const delta =
+        nextTurns > prevTurns
+          ? `新增 ${nextTurns - prevTurns} 轮问答`
+          : '内容可能无变化'
+      const ok = window.confirm(
+        `该对话已收藏为《${existing.title}》（${prevTurns} 轮，${delta}）。\n\n确定=更新这条笔记，取消=另存为新笔记。`
+      )
+      if (ok) {
+        chrome.runtime.sendMessage({
+          type: 'UPDATE_CONVERSATION',
+          id: existing.id,
+          payload: snippet,
+        })
+        showShortcutToast('已更新该对话笔记', 'success')
+        return
+      }
+    }
+  }
+
+  const { collectionModeActive } = await chrome.storage.local.get(
+    'collectionModeActive'
+  )
+  chrome.runtime.sendMessage({
+    type: collectionModeActive ? 'ADD_TO_COLLECTION' : 'SAVE_SNIPPET',
+    payload: snippet,
+  })
+  showShortcutToast(
+    collectionModeActive ? '整段对话已加入收集箱' : '整段对话已保存到可记',
+    'success'
+  )
+}
+
 // ── 消息处理 ──────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // 侧边栏/快捷键请求保存整段对话，只在顶层 frame 响应
+  if (message.type === 'CAPTURE_CONVERSATION') {
+    if (window.top !== window) return
+    saveConversation()
+    return
+  }
+
   if (message.type !== 'CAPTURE_PAGE') return
 
   const requestId = message.requestId
@@ -103,7 +171,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return
   }
 
-  // 整页捕获
+  // 整页 / 整段对话捕获
   const snippet = captureFullPage()
   if (!snippet) {
     chrome.runtime.sendMessage({
@@ -130,8 +198,10 @@ try {
   initTooltipListener()
   console.log('[keji] Tooltip listener initialized')
 
-  // 初始化键盘快捷键
-  initShortcuts(platformName)
+  // 初始化键盘快捷键（整页保存直接在本 frame 捕获，不绕 background）
+  initShortcuts(platformName, () => {
+    saveConversation()
+  })
   console.log('[keji] Shortcuts initialized')
 
   // 根据平台注入保存按钮

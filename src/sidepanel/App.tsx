@@ -11,10 +11,19 @@ import { AuthSync } from './views/AuthSync'
 import { ExportNotes } from './views/ExportNotes'
 import { KnowledgeGraph } from './views/KnowledgeGraph'
 import { Button } from './components/ui/button'
-import { Search, FolderOpen, Sparkles, Home, Settings, FolderSync, Inbox, Sun, Moon, Cloud, Download, Network } from 'lucide-react'
+import { Search, FolderOpen, Sparkles, Home, Settings, FolderSync, Inbox, Sun, Moon, Cloud, Download, Network, MessagesSquare } from 'lucide-react'
 import { useTheme } from '../lib/useTheme'
 
 type View = 'home' | 'snippets' | 'agent' | 'sync' | 'collection' | 'auth' | 'export'
+
+/** 从标签页地址识别 AI 平台，非 AI 平台返回空串 */
+function platformOfUrl(url: string): string {
+  if (url.includes('chatgpt.com')) return 'ChatGPT'
+  if (url.includes('claude.ai')) return 'Claude'
+  if (url.includes('gemini.google.com')) return 'Gemini'
+  if (url.includes('grok.com') || url.includes('x.ai')) return 'Grok'
+  return ''
+}
 
 export default function App() {
   const { theme, toggleTheme } = useTheme()
@@ -157,6 +166,7 @@ export default function App() {
             folderCount={folders.length}
             cloudUser={cloudUser}
             onNavigate={setView}
+            showToast={showToast}
           />
         )}
         {view === 'snippets' && (
@@ -215,12 +225,49 @@ function HomeView({
   folderCount,
   cloudUser,
   onNavigate,
+  showToast,
 }: {
   snippetCount: number
   folderCount: number
   cloudUser: { email: string; displayName: string } | null
   onNavigate: (view: View) => void
+  showToast: (type: 'success' | 'error', message: string) => void
 }) {
+  // 当前标签页所在的 AI 平台，非 AI 平台为空
+  const [aiPlatform, setAiPlatform] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    const detect = () => {
+      chrome.tabs?.query({ active: true, currentWindow: true }, (tabs) => {
+        setAiPlatform(platformOfUrl(tabs[0]?.url || ''))
+      })
+    }
+    detect()
+    // 切换标签页/页面内跳转时重新判断
+    chrome.tabs?.onActivated?.addListener(detect)
+    chrome.tabs?.onUpdated?.addListener(detect)
+    return () => {
+      chrome.tabs?.onActivated?.removeListener(detect)
+      chrome.tabs?.onUpdated?.removeListener(detect)
+    }
+  }, [])
+
+  const saveConversation = () => {
+    setSaving(true)
+    chrome.runtime.sendMessage(
+      { type: 'CAPTURE_CONVERSATION_REQUEST' },
+      (res) => {
+        setSaving(false)
+        const error = chrome.runtime.lastError?.message || res?.error
+        if (error) {
+          showToast('error', error)
+        }
+        // 成功与否由页面内的提示反馈，这里不重复提示
+      }
+    )
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="text-center">
@@ -259,7 +306,21 @@ function HomeView({
       </div>
 
       <div className="space-y-2">
-        <Button className="w-full" onClick={() => onNavigate('snippets')}>
+        {aiPlatform && (
+          <Button
+            className="w-full"
+            onClick={saveConversation}
+            disabled={saving}
+          >
+            <MessagesSquare className="mr-2 h-4 w-4" />
+            {saving ? '正在保存…' : `保存整个 ${aiPlatform} 对话`}
+          </Button>
+        )}
+        <Button
+          className="w-full"
+          variant={aiPlatform ? 'outline' : 'default'}
+          onClick={() => onNavigate('snippets')}
+        >
           <FolderOpen className="mr-2 h-4 w-4" />
           查看笔记
         </Button>
@@ -282,7 +343,8 @@ function HomeView({
       </div>
 
       <p className="text-center text-xs text-slate-400 dark:text-slate-500">
-        在 ChatGPT / Claude / Gemini 页面划词或点击按钮即可保存
+        在 ChatGPT / Claude / Gemini / Grok 页面划词、点击按钮，或按 Alt+Shift+S
+        保存整段对话
       </p>
     </div>
   )

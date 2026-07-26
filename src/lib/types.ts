@@ -21,6 +21,21 @@ export interface Annotation {
   quote?: string
 }
 
+// ── 对话型笔记 ──────────────────────────────────────────
+
+/**
+ * 整段对话的元信息。
+ * 只有「保存整个对话」产生的笔记才带这个字段，用来支持按会话地址去重更新。
+ */
+export interface ConversationMeta {
+  /** 会话唯一标识，取自会话地址（去掉 query/hash 等易变部分） */
+  conversationKey: string
+  /** 本次捕获到的问答轮数，用于判断是否有新内容 */
+  turnCount: number
+  /** 最近一次抓取时间 */
+  capturedAt: string
+}
+
 // ── 笔记 AI 产物 ──────────────────────────────────────────
 
 /** 思维导图（以 Markdown 缩进列表存储，渲染时解析为树） */
@@ -64,6 +79,8 @@ export interface Snippet {
   summary?: string
   /** AI 生成的思维导图与问答记录 */
   ai?: SnippetAI
+  /** 整段对话捕获的元信息，仅对话型笔记有 */
+  conversation?: ConversationMeta
 }
 
 /** AI 提供商预设 */
@@ -114,7 +131,8 @@ export interface AddToCollectionMessage {
 
 export interface CapturePageMessage {
   type: 'CAPTURE_PAGE'
-  mode: 'page' | 'selection'
+  /** conversation = 强制整段对话捕获，不受当前选区影响 */
+  mode: 'page' | 'selection' | 'conversation'
   requestId: string
 }
 
@@ -125,11 +143,17 @@ export interface CaptureResultMessage {
   error?: string
 }
 
+/** 侧边栏请求捕获当前标签页的整段对话 */
+export interface CaptureConversationMessage {
+  type: 'CAPTURE_CONVERSATION'
+}
+
 export type ContentMessage =
   | SaveSnippetMessage
   | AddToCollectionMessage
   | CapturePageMessage
   | CaptureResultMessage
+  | CaptureConversationMessage
 
 /** 消息类型：扩展 ↔ Obsidian Native Host */
 export interface ObsidianRequest {

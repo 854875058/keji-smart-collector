@@ -3,6 +3,27 @@ import type { Snippet, AgentConfig, ObsidianConfig, SmartFolder } from './types'
 // 序列化 Promise 链，防止并发写入冲突
 let _updateQueue: Promise<void> = Promise.resolve()
 
+/**
+ * 写入 chrome.storage.local 并检查结果。
+ *
+ * chrome.storage.local.set 在超出配额时不会 reject，而是把错误挂在
+ * chrome.runtime.lastError 上静默失败——调用方会以为已经存上了。
+ * 这里显式检查并抛出，让上层能给出可见提示。
+ */
+async function setChecked(items: Record<string, unknown>): Promise<void> {
+  await chrome.storage.local.set(items)
+  const err = chrome.runtime.lastError
+  if (err) {
+    const message = err.message || '未知错误'
+    if (/quota/i.test(message)) {
+      throw new Error(
+        '本地存储空间已满，无法保存。请先删除部分笔记，或在扩展详情页确认已启用无限存储权限。'
+      )
+    }
+    throw new Error(`保存失败：${message}`)
+  }
+}
+
 /** chrome.storage.local 封装层 */
 export const storage = {
   // ── 笔记 ──────────────────────────────────────────
@@ -13,14 +34,27 @@ export const storage = {
 
   async saveSnippet(snippet: Snippet): Promise<void> {
     const snippets = await this.getSnippets()
-    await chrome.storage.local.set({
+    await setChecked({
       snippets: [{ cloudStatus: 'none', ...snippet }, ...snippets],
     })
   },
 
+  /**
+   * 查找同一会话已收藏的对话型笔记。
+   * 只匹配带 conversation 元信息的笔记，避免把普通网页笔记误判成同一会话。
+   */
+  async findConversation(conversationKey: string): Promise<Snippet | null> {
+    if (!conversationKey) return null
+    const snippets = await this.getSnippets()
+    return (
+      snippets.find((s) => s.conversation?.conversationKey === conversationKey) ||
+      null
+    )
+  },
+
   async deleteSnippet(id: string): Promise<void> {
     const snippets = await this.getSnippets()
-    await chrome.storage.local.set({
+    await setChecked({
       snippets: snippets.filter((s) => s.id !== id),
     })
   },
@@ -36,7 +70,7 @@ export const storage = {
         }
         return merged
       })
-      await chrome.storage.local.set({ snippets: updated })
+      await setChecked({ snippets: updated })
     })
     return _updateQueue
   },
@@ -114,17 +148,17 @@ export const storage = {
   },
 
   async setCollectionItems(items: Snippet[]): Promise<void> {
-    await chrome.storage.local.set({ collectionItems: items })
+    await setChecked({ collectionItems: items })
   },
 
   async addCollectionItem(item: Snippet): Promise<void> {
     const items = await this.getCollectionItems()
-    await chrome.storage.local.set({ collectionItems: [...items, item] })
+    await setChecked({ collectionItems: [...items, item] })
   },
 
   async removeCollectionItem(id: string): Promise<void> {
     const items = await this.getCollectionItems()
-    await chrome.storage.local.set({ collectionItems: items.filter((i) => i.id !== id) })
+    await setChecked({ collectionItems: items.filter((i) => i.id !== id) })
   },
 
   async clearCollectionItems(): Promise<void> {

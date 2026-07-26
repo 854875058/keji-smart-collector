@@ -5,6 +5,7 @@
   "description": "一键保存、整理和搜索来自 ChatGPT、Claude 和 Gemini 的高质量 AI 回答。",
   "permissions": [
     "storage",
+    "unlimitedStorage",
     "sidePanel",
     "activeTab",
     "scripting",

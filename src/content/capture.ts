@@ -1,5 +1,5 @@
-import type { Snippet, MediaAttachment, ImageInfo } from '../lib/types'
-import { generateTitle, normalizeText, detectPlatform } from '../lib/utils'
+import type { Snippet, MediaAttachment, ImageInfo, ConversationMeta } from '../lib/types'
+import { generateTitle, generateId, normalizeText } from '../lib/utils'
 import { getPlatformAdapter, getPlatformName } from './platforms'
 
 /** 从选区提取内容 */
@@ -56,10 +56,11 @@ export function buildSnippet(
   question: string,
   answer: string,
   contentHtml?: string,
-  media?: MediaAttachment
+  media?: MediaAttachment,
+  conversation?: ConversationMeta
 ): Snippet {
   return {
-    id: Date.now().toString(),
+    id: generateId(),
     source: getPlatformName(),
     title: generateTitle(),
     question,
@@ -68,6 +69,21 @@ export function buildSnippet(
     media: media || { images: [], tables: [] },
     timestamp: new Date().toISOString(),
     url: window.location.href,
+    ...(conversation ? { conversation } : {}),
+  }
+}
+
+/**
+ * 会话标识：取 origin + pathname，丢掉 query 和 hash。
+ * AI 站点的会话地址形如 /app/<id> 或 /c/<id>，query 常带无关的埋点参数，
+ * 保留会让同一个会话在不同访问下算成两条。
+ */
+export function conversationKeyOf(href = window.location.href): string {
+  try {
+    const u = new URL(href)
+    return `${u.origin}${u.pathname}`.replace(/\/+$/, '')
+  } catch {
+    return href
   }
 }
 
@@ -75,32 +91,12 @@ export function buildSnippet(
 export function captureFullPage(): Snippet | null {
   const adapter = getPlatformAdapter()
 
-  if (!adapter) {
-    // 普通网页：尝试选区，回退到 article/main
-    const selection = captureSelection()
-    if (selection && selection.text) {
-      return buildSnippet(
-        '网页划词保存',
-        selection.text,
-        selection.html,
-        selection.media
-      )
-    }
-    const main =
-      document.querySelector('article, main') || document.body
-    if (!main) return null
-    const content = captureMessage(main)
-    return buildSnippet(
-      '网页内容保存',
-      content.text.slice(0, 8000),
-      content.html,
-      content.media
-    )
-  }
+  if (!adapter) return captureGenericPage()
 
   // AI 平台：捕获所有 assistant 消息
   const messages = adapter.selectAssistantMessages()
-  if (messages.length === 0) return null
+  // 选择器随平台前端改版会失效，此时回退到通用抓取，避免静默返回 null
+  if (messages.length === 0) return captureGenericPage()
 
   const turns = messages
     .map((el) => {
@@ -110,7 +106,7 @@ export function captureFullPage(): Snippet | null {
     })
     .filter((t) => t.text.trim() || t.html.trim())
 
-  if (turns.length === 0) return null
+  if (turns.length === 0) return captureGenericPage()
 
   const answer = turns
     .map((t) => `## 提问\n${t.question}\n\n## 回答\n${t.text}`)
@@ -143,7 +139,37 @@ export function captureFullPage(): Snippet | null {
     }
   }
 
-  return buildSnippet('整页对话保存', answer, contentHtml, media)
+  return buildSnippet('整页对话保存', answer, contentHtml, media, {
+    conversationKey: conversationKeyOf(),
+    turnCount: turns.length,
+    capturedAt: new Date().toISOString(),
+  })
+}
+
+/**
+ * 通用网页抓取：优先用选区，否则取 article/main。
+ * 也用作 AI 平台适配器失效时的兜底。
+ */
+function captureGenericPage(): Snippet | null {
+  const selection = captureSelection()
+  if (selection && selection.text) {
+    return buildSnippet(
+      '网页划词保存',
+      selection.text,
+      selection.html,
+      selection.media
+    )
+  }
+  const main = document.querySelector('article, main') || document.body
+  if (!main) return null
+  const content = captureMessage(main)
+  if (!content.text.trim() && !content.html.trim()) return null
+  return buildSnippet(
+    '网页内容保存',
+    content.text.slice(0, 8000),
+    content.html,
+    content.media
+  )
 }
 
 // ── DOM 工具函数 ──────────────────────────────────────

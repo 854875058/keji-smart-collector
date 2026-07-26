@@ -34,11 +34,31 @@ chrome.runtime.onInstalled.addListener(() => {
     title: '保存到收集箱',
     contexts: ['page', 'selection'],
   })
+  // 子菜单：保存整个对话（无论是否有选中文本，都抓整段对话）
+  chrome.contextMenus.create({
+    id: 'keji-save-conversation',
+    parentId: 'keji-parent',
+    title: '保存整个对话',
+    contexts: ['page', 'selection'],
+  })
 })
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (!tab?.id) return
   const menuId = info.menuItemId as string
+
+  // 「保存整个对话」交给 content script 自行处理（含同会话去重询问）
+  if (menuId === 'keji-save-conversation') {
+    chrome.tabs.sendMessage(tab.id, { type: 'CAPTURE_CONVERSATION' }, () => {
+      if (chrome.runtime.lastError) {
+        chrome.storage.local.set({
+          captureResult: { error: '无法读取当前页面内容' },
+        })
+      }
+    })
+    return
+  }
+
   const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   pendingRequests.set(requestId, false)
 
@@ -91,6 +111,53 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       pendingCollectionItem: message.payload,
     })
     sendResponse({ status: 'success' })
+    return true
+  }
+
+  // 用新抓取的对话覆盖已有笔记（保留标题、文件夹、标签、AI 产物等人工整理结果）
+  if (message.type === 'UPDATE_CONVERSATION') {
+    const { id, payload } = message as { id: string; payload: Snippet }
+    chrome.storage.local.get(['snippets'], (data) => {
+      const snippets: Snippet[] = data.snippets || []
+      const updated = snippets.map((s) => {
+        if (s.id !== id) return s
+        return {
+          ...s,
+          question: payload.question,
+          answer: payload.answer,
+          contentHtml: payload.contentHtml,
+          media: payload.media,
+          url: payload.url,
+          conversation: payload.conversation,
+          timestamp: payload.timestamp,
+          cloudStatus: s.cloudStatus === 'synced' ? 'dirty' : s.cloudStatus,
+        }
+      })
+      chrome.storage.local.set({
+        snippets: updated,
+        saveResult: { success: true, snippet: updated.find((s) => s.id === id) },
+      })
+    })
+    sendResponse({ status: 'success' })
+    return true
+  }
+
+  // 侧边栏请求：保存当前标签页的整段对话
+  if (message.type === 'CAPTURE_CONVERSATION_REQUEST') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs[0]
+      if (!tab?.id) {
+        sendResponse({ error: '无法获取当前标签页' })
+        return
+      }
+      chrome.tabs.sendMessage(tab.id, { type: 'CAPTURE_CONVERSATION' }, () => {
+        if (chrome.runtime.lastError) {
+          sendResponse({ error: '无法读取当前页面内容，请刷新页面后重试' })
+        } else {
+          sendResponse({ status: 'started' })
+        }
+      })
+    })
     return true
   }
 

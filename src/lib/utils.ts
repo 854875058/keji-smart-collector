@@ -20,6 +20,14 @@ export function generateTitle(date = new Date()): string {
   return `笔记 - ${mm}-${dd} ${hh}:${mi}`
 }
 
+/**
+ * 生成笔记 ID。
+ * 带随机后缀，避免同一毫秒内连续保存（如批量整理、收集箱一次性入库）撞 ID。
+ */
+export function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+}
+
 /** 去除文本尾部空白 */
 export function trimTrailing(text: string): string {
   return text.replace(/\s+$/, '')
