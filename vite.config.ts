@@ -29,6 +29,7 @@ function copyExtensionFiles(): Plugin {
             content = content.replace(/src="[^"]+"/, (m: string) => {
               if (file.includes('sidepanel')) return 'src="assets/sidepanel.js"'
               if (file.includes('web')) return 'src="assets/web.js"'
+              if (file.includes('site')) return 'src="assets/site.js"'
               return m
             })
             // 修正绝对路径为相对路径
@@ -40,6 +41,7 @@ function copyExtensionFiles(): Plugin {
         // 清理 src 目录
         try { unlinkSync(resolve(entryDir, 'sidepanel.html')) } catch {}
         try { unlinkSync(resolve(entryDir, 'web.html')) } catch {}
+        try { unlinkSync(resolve(entryDir, 'site.html')) } catch {}
         try { rmdirSync(entryDir) } catch {}
         try { rmdirSync(resolve(distDir, 'src')) } catch {}
       }
@@ -65,6 +67,7 @@ export default defineConfig({
       input: {
         sidepanel: resolve(__dirname, 'src/entry/sidepanel.html'),
         web: resolve(__dirname, 'src/entry/web.html'),
+        site: resolve(__dirname, 'src/entry/site.html'),
         background: resolve(__dirname, 'src/background/index.ts'),
         // content script 由 vite.content.config.ts 单独构建为 IIFE
       },
@@ -76,6 +79,8 @@ export default defineConfig({
         },
         chunkFileNames: 'assets/[name].js',
         assetFileNames: (assetInfo) => {
+          // 官网落地页有独立设计体系，样式单独产出，避免与 Tailwind 主包混在一起
+          if (assetInfo.name === 'site.css') return 'assets/site.css'
           if (assetInfo.name?.endsWith('.css')) return 'assets/globals.css'
           return 'assets/[name][extname]'
         },
