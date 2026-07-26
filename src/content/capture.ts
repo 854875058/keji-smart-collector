@@ -1,5 +1,6 @@
 import type { Snippet, MediaAttachment, ImageInfo, ConversationMeta } from '../lib/types'
 import { generateTitle, generateId, normalizeText } from '../lib/utils'
+import { sanitizeElement } from '../lib/sanitize'
 import { getPlatformAdapter, getPlatformName } from './platforms'
 
 /** 从选区提取内容 */
@@ -226,11 +227,14 @@ function domToText(root: Element): string {
   return normalizeText(result)
 }
 
-/** 移除不安全元素 */
+/**
+ * 移除不安全内容。
+ *
+ * 白名单净化，会同时处理危险标签、on* 事件属性和 javascript: 协议。
+ * 抓取阶段就净化，保证入库的 contentHtml 已经是安全的。
+ */
 function stripUnsafeElements(el: Element) {
-  el.querySelectorAll('script, style, iframe, object, embed').forEach((e) =>
-    e.remove()
-  )
+  sanitizeElement(el)
 }
 
 /** 移除注入的按钮 */
@@ -244,7 +248,17 @@ function resolveImageUrls(el: Element) {
     const src = img.getAttribute('src')
     if (src) {
       try {
-        img.setAttribute('src', new URL(src, document.baseURI).toString())
+        const abs = new URL(src, document.baseURI)
+        // 净化在此之前执行，这里重新校验一次，避免相对地址解析后变成非法协议
+        const ok =
+          abs.protocol === 'http:' ||
+          abs.protocol === 'https:' ||
+          (abs.protocol === 'data:' && /^data:image\//i.test(abs.href))
+        if (ok) {
+          img.setAttribute('src', abs.toString())
+        } else {
+          img.removeAttribute('src')
+        }
       } catch {}
     }
   })

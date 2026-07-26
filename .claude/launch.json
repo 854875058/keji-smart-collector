@@ -6,6 +6,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["vite", "preview", "--outDir", "dist", "--port", "4173"],
       "port": 4173
+    },
+    {
+      "name": "keji-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--port", "5199"],
+      "port": 5199
     }
   ]
 }

@@ -1,10 +1,32 @@
-import { storage } from '../lib/storage'
 import type { Snippet } from '../lib/types'
 
 // 打开侧边栏
 chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch((e) => console.error(e))
+
+/**
+ * 写入并检查结果。
+ *
+ * chrome.storage.local.set 超出配额时不会抛错，只把错误挂在
+ * chrome.runtime.lastError 上——调用方会以为已经存上了。这里显式检查，
+ * 把失败写进 captureResult，让侧边栏能提示出来。
+ *
+ * 注意：不能复用 lib/storage.ts 的 setChecked，那边是 Promise 风格，
+ * 而这里的调用都在 chrome.storage.local.get 的回调里，需要回调风格。
+ */
+function setChecked(items: Record<string, unknown>, onError?: (msg: string) => void) {
+  chrome.storage.local.set(items, () => {
+    const err = chrome.runtime.lastError
+    if (!err) return
+    const message = /quota/i.test(err.message || '')
+      ? '本地存储空间已满，保存失败。请先删除部分笔记。'
+      : `保存失败：${err.message || '未知错误'}`
+    console.error('[keji]', message)
+    if (onError) onError(message)
+    else chrome.storage.local.set({ captureResult: { error: message } })
+  })
+}
 
 // 请求去重 Map
 const pendingRequests = new Map<string, boolean>()
@@ -96,7 +118,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         !snippet.folder && activeFolder
           ? { ...snippet, folder: activeFolder }
           : snippet
-      chrome.storage.local.set({
+      setChecked({
         snippets: [withFolder, ...snippets],
         saveResult: { success: true, snippet: withFolder },
       })
@@ -107,7 +129,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // 加入收集箱
   if (message.type === 'ADD_TO_COLLECTION') {
-    chrome.storage.local.set({
+    setChecked({
       pendingCollectionItem: message.payload,
     })
     sendResponse({ status: 'success' })
@@ -133,7 +155,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           cloudStatus: s.cloudStatus === 'synced' ? 'dirty' : s.cloudStatus,
         }
       })
-      chrome.storage.local.set({
+      setChecked({
         snippets: updated,
         saveResult: { success: true, snippet: updated.find((s) => s.id === id) },
       })
@@ -209,7 +231,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // 保存到收集箱
         chrome.storage.local.get(['collectionItems'], (data) => {
           const items: Snippet[] = data.collectionItems || []
-          chrome.storage.local.set({
+          setChecked({
             collectionItems: [...items, snippet],
             captureResult: { success: true, snippet, target: 'inbox' },
           })
@@ -223,7 +245,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             !snippet.folder && activeFolder
               ? { ...snippet, folder: activeFolder }
               : snippet
-          chrome.storage.local.set({
+          setChecked({
             snippets: [withFolder, ...snippets],
             captureResult: { success: true, snippet: withFolder },
           })

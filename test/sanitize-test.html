@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>可记 - 净化逻辑实测</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 1000px; margin: 24px auto; padding: 0 16px; }
+    h1 { font-size: 20px; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { background: #f5f5f5; }
+    code { font-family: ui-monospace, monospace; font-size: 12px; word-break: break-all; }
+    .pass { color: #067647; font-weight: 600; }
+    .fail { color: #b42318; font-weight: 600; }
+    #summary { font-size: 16px; font-weight: 600; margin: 16px 0; padding: 12px; border-radius: 8px; }
+    #sandbox { display: none; }
+  </style>
+</head>
+<body>
+  <h1>净化逻辑实测</h1>
+  <p>把真实 XSS payload 送进 sanitizeHtml，检查危险内容是否被清除、正常内容是否保留。
+     任何脚本一旦执行都会被 window.__xss 计数捕获。</p>
+  <div id="summary">运行中…</div>
+  <table>
+    <thead><tr><th>用例</th><th>输入</th><th>输出</th><th>结果</th></tr></thead>
+    <tbody id="results"></tbody>
+  </table>
+  <div id="sandbox"></div>
+
+  <script type="module">
+    import { sanitizeHtml } from '/src/lib/sanitize.ts'
+
+    // 任何 payload 执行都会累加这里
+    window.__xss = 0
+    window.__hit = () => { window.__xss++ }
+
+    // 用拼接构造，避免字面量里出现 </scr+ipt> 提前结束外层 script 块
+    const S = '<scr' + 'ipt>window.__hit()</scr' + 'ipt>'
+
+    const cases = [
+      // ── 必须被清除 ──
+      { name: 'script 标签', html: S, mustNotContain: ['__hit', 'script'] },
+      { name: 'img onerror', html: '<img src=x onerror="window.__hit()">', mustNotContain: ['onerror', '__hit'] },
+      { name: 'svg onload', html: '<svg onload="window.__hit()"></svg>', mustNotContain: ['onload', '__hit', 'svg'] },
+      { name: 'div onload 属性', html: '<div onload="window.__hit()">文本</div>', mustNotContain: ['onload'] , mustContain: ['文本'] },
+      { name: 'javascript: 链接', html: '<a href="javascript:window.__hit()">点我</a>', mustNotContain: ['javascript:'], mustContain: ['点我'] },
+      { name: 'JAVASCRIPT 大写混淆', html: '<a href="JaVaScRiPt:window.__hit()">x</a>', mustNotContain: ['aVaScR'] },
+      { name: 'javascript 内嵌 tab', html: '<a href="java\tscript:window.__hit()">x</a>', mustNotContain: ['__hit'] },
+      { name: 'iframe', html: '<iframe src="https://evil.example"></iframe>', mustNotContain: ['iframe'] },
+      { name: 'onmouseover', html: '<p onmouseover="window.__hit()">悬停</p>', mustNotContain: ['onmouseover'], mustContain: ['悬停'] },
+      { name: 'style 标签', html: '<style>body{display:none}</style><p>正文</p>', mustNotContain: ['<style'], mustContain: ['正文'] },
+      { name: 'style 属性', html: '<p style="position:fixed;top:0">文</p>', mustNotContain: ['style='] },
+      { name: 'form + input', html: '<form action="https://evil.example"><input name="p"></form>', mustNotContain: ['<form', '<input'] },
+      { name: 'object/embed', html: '<object data="x.swf"></object><embed src="y">', mustNotContain: ['<object', '<embed'] },
+      { name: 'data: HTML', html: '<a href="data:text/html;base64,PHNjcmlwdD4=">x</a>', mustNotContain: ['data:text/html'] },
+      { name: 'srcdoc', html: '<div srcdoc="' + S + '">x</div>', mustNotContain: ['srcdoc'] },
+      { name: '嵌套 script', html: '<div><span>' + S + '</span></div>', mustNotContain: ['__hit'] },
+
+      // ── 必须被保留 ──
+      { name: '普通段落与强调', html: '<p>这是<strong>粗体</strong>和<em>斜体</em></p>', mustContain: ['<p>', '<strong>', '粗体', '<em>'] },
+      { name: '代码块', html: '<pre><code>const a = 1;</code></pre>', mustContain: ['<pre>', '<code>', 'const a = 1;'] },
+      { name: '表格', html: '<table><thead><tr><th>头</th></tr></thead><tbody><tr><td colspan="2">格</td></tr></tbody></table>', mustContain: ['<table>', '<th>', 'colspan="2"', '格'] },
+      { name: '有序/无序列表', html: '<ul><li>甲</li></ul><ol start="3"><li>乙</li></ol>', mustContain: ['<ul>', '<li>', '甲', 'start="3"', '乙'] },
+      { name: 'https 链接', html: '<a href="https://example.com" title="站">链接</a>', mustContain: ['href="https://example.com"', '链接', 'title="站"'] },
+      { name: 'https 图片', html: '<img src="https://example.com/a.png" alt="图">', mustContain: ['src="https://example.com/a.png"', 'alt="图"'] },
+      { name: 'data:image 图片', html: '<img src="data:image/png;base64,iVBORw0KGgo=" alt="内联">', mustContain: ['data:image/png'] },
+      { name: 'mailto 链接', html: '<a href="mailto:a@b.com">邮件</a>', mustContain: ['mailto:a@b.com'] },
+      { name: '标题层级', html: '<h2>二级</h2><h3>三级</h3>', mustContain: ['<h2>', '二级', '<h3>'] },
+      { name: 'class 保留', html: '<div class="markdown">内容</div>', mustContain: ['class="markdown"', '内容'] },
+      { name: '未知标签脱壳保内容', html: '<custom-el>保留这段文字</custom-el>', mustContain: ['保留这段文字'], mustNotContain: ['custom-el'] },
+      { name: '空输入', html: '', expectEmpty: true },
+    ]
+
+    const tbody = document.getElementById('results')
+    const sandbox = document.getElementById('sandbox')
+    let pass = 0, fail = 0
+    const failures = []
+
+    for (const c of cases) {
+      const out = sanitizeHtml(c.html)
+
+      // 把净化结果真的插入 DOM——若有残留可执行内容，__xss 会被累加
+      sandbox.innerHTML = out
+
+      const problems = []
+      for (const bad of c.mustNotContain || []) {
+        if (out.toLowerCase().includes(bad.toLowerCase())) problems.push(`残留 "${bad}"`)
+      }
+      for (const good of c.mustContain || []) {
+        if (!out.includes(good)) problems.push(`丢失 "${good}"`)
+      }
+      if (c.expectEmpty && out !== '') problems.push('应为空')
+
+      const ok = problems.length === 0
+      ok ? pass++ : (fail++, failures.push(`${c.name}: ${problems.join('; ')}`))
+
+      const tr = document.createElement('tr')
+      const cells = [c.name, c.html || '(空)', out || '(空)', ok ? 'PASS' : 'FAIL ' + problems.join('; ')]
+      cells.forEach((text, i) => {
+        const td = document.createElement('td')
+        if (i === 1 || i === 2) {
+          const code = document.createElement('code')
+          code.textContent = text
+          td.appendChild(code)
+        } else if (i === 3) {
+          td.className = ok ? 'pass' : 'fail'
+          td.textContent = text
+        } else {
+          td.textContent = text
+        }
+        tr.appendChild(td)
+      })
+      tbody.appendChild(tr)
+    }
+
+    sandbox.innerHTML = ''
+
+    // 给异步 payload（onerror 等）一点时间暴露
+    setTimeout(() => {
+      const xss = window.__xss
+      const el = document.getElementById('summary')
+      const allOk = fail === 0 && xss === 0
+      el.textContent = allOk
+        ? `全部通过：${pass}/${cases.length} 用例，脚本执行次数 ${xss}`
+        : `失败 ${fail} 项，脚本执行 ${xss} 次 — ${failures.join(' | ')}`
+      el.style.background = allOk ? '#ecfdf3' : '#fef3f2'
+      el.style.color = allOk ? '#067647' : '#b42318'
+      el.dataset.status = allOk ? 'ok' : 'bad'
+      el.dataset.pass = pass
+      el.dataset.fail = fail
+      el.dataset.xss = xss
+    }, 600)
+  </script>
+</body>
+</html>

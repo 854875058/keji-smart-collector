@@ -9,7 +9,7 @@ import {
   ArrowUpDown, ChevronDown, Save, FolderInput, Filter,
   Sparkles, Loader2, GitCompareArrows, Plus, Network,
 } from 'lucide-react'
-import { formatDate, highlightText, filterBySearch, type SearchScope } from '../../lib/utils'
+import { formatDate, highlightText, filterBySearch, escapeHtml, type SearchScope } from '../../lib/utils'
 import { replaceWikiLinks } from '../../lib/wikiLink'
 import { findRelatedNotes } from '../../agent/relatedNotes'
 import { batchAutoTag, batchFindDuplicates } from '../../agent/batchOps'
@@ -1073,7 +1073,9 @@ function NoteDetailInline({
           className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed dark:text-slate-200 wiki-link-content"
           dangerouslySetInnerHTML={{
             __html: replaceWikiLinks(
-              snippet.answer.replace(/\n/g, '<br/>'),
+              // answer 是纯文本，必须先转义再拼 <br/>，否则正文里的
+              // <img onerror=...> 之类会被当成真的 HTML 渲染
+              escapeHtml(snippet.answer).replace(/\n/g, '<br/>'),
               findSnippetId,
               'text-emerald-600 hover:text-emerald-700 underline underline-offset-2 cursor-pointer'
             ),

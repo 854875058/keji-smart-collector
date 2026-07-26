@@ -3,6 +3,7 @@ import { storage } from '../lib/storage'
 import { createSupabaseClient, mapUser } from '../lib/supabase'
 import type { Snippet } from '../lib/types'
 import { formatDate } from '../lib/utils'
+import { sanitizeHtml } from '../lib/sanitize'
 import { Button } from '../sidepanel/components/ui/button'
 import { Input } from '../sidepanel/components/ui/input'
 import { Textarea } from '../sidepanel/components/ui/textarea'
@@ -503,7 +504,11 @@ function NoteDetail({
         ) : (
           <article
             className="keji-rich min-h-[480px] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-5 prose prose-sm dark:prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: snippet.contentHtml || formatAnswer(snippet.answer) }}
+            dangerouslySetInnerHTML={{
+              __html: snippet.contentHtml
+                ? sanitizeHtml(snippet.contentHtml)
+                : formatAnswer(snippet.answer),
+            }}
           />
         )}
       </div>
