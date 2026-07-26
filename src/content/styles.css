@@ -121,3 +121,64 @@
 .keji-tooltip--saved .keji-tooltip-divider {
   background: rgba(255, 255, 255, 0.22) !important;
 }
+
+/* ── 对话自动保存开关（右下角常驻） ───────────────────── */
+.keji-autosave {
+  position: fixed !important;
+  right: 16px !important;
+  bottom: 16px !important;
+  z-index: 2147483646 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 6px 10px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(148, 163, 184, 0.4) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #475569 !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12) !important;
+  transition: background 0.15s, border-color 0.15s, color 0.15s !important;
+  opacity: 0.75 !important;
+}
+.keji-autosave:hover {
+  opacity: 1 !important;
+}
+.keji-autosave:focus-visible {
+  outline: 2px solid #10b981 !important;
+  outline-offset: 2px !important;
+}
+.keji-autosave--on {
+  border-color: #10b981 !important;
+  color: #047857 !important;
+  background: rgba(236, 253, 245, 0.96) !important;
+  opacity: 1 !important;
+}
+.keji-autosave__dot {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: 1.5px solid rgba(100, 116, 139, 0.7) !important;
+  flex: none !important;
+}
+.keji-autosave__dot--on {
+  background: #10b981 !important;
+  border-color: #10b981 !important;
+}
+@media (prefers-color-scheme: dark) {
+  .keji-autosave {
+    background: rgba(30, 41, 59, 0.94) !important;
+    border-color: rgba(100, 116, 139, 0.5) !important;
+    color: #cbd5e1 !important;
+  }
+  .keji-autosave--on {
+    background: rgba(6, 78, 59, 0.9) !important;
+    border-color: #10b981 !important;
+    color: #6ee7b7 !important;
+  }
+}

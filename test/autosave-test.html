@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>自动保存逻辑测试</title>
+<style>
+  body { font-family: -apple-system, 'Segoe UI', sans-serif; padding: 20px; max-width: 900px; }
+  .row { padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 13px; }
+  .pass { color: #047857; } .fail { color: #dc2626; font-weight: 600; }
+  #summary { margin: 16px 0; padding: 12px; border-radius: 8px; background: #f1f5f9; font-weight: 600; }
+  pre { background: #f8fafc; padding: 8px; font-size: 12px; overflow-x: auto; }
+</style>
+</head>
+<body>
+<h1>对话自动保存 —— 静默期与判重逻辑</h1>
+<p>验证真实计时行为，不是纯函数断言。模拟流式输出：DOM 连续变动期间不应落盘，停止变动 SETTLE_MS 后才落盘一次。</p>
+<div id="summary">运行中…</div>
+<div id="rows"></div>
+
+<script type="module">
+const SETTLE_MS = 1500
+const MIN_INTERVAL_MS = 3000
+
+const rows = document.getElementById('rows')
+let pass = 0, fail = 0
+function check(name, got, want) {
+  const ok = JSON.stringify(got) === JSON.stringify(want)
+  ok ? pass++ : fail++
+  const d = document.createElement('div')
+  d.className = 'row ' + (ok ? 'pass' : 'fail')
+  d.textContent = `${ok ? 'ok  ' : 'FAIL'} ${name} — 实际 ${JSON.stringify(got)}${ok ? '' : ' / 期望 ' + JSON.stringify(want)}`
+  rows.appendChild(d)
+}
+const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+
+// ── 复刻 autoSave.ts 的调度与判重核心 ────────────────────
+function makeController(readState) {
+  let settleTimer = null, lastSaveAt = 0, lastFingerprint = '', saving = false
+  const saves = []
+
+  async function runSave() {
+    if (saving) return
+    const now = Date.now()
+    if (now - lastSaveAt < MIN_INTERVAL_MS) return
+    const st = readState()
+    const fingerprint = `${st.turns}:${st.answerLen}`
+    if (fingerprint === lastFingerprint) return
+    saving = true
+    try {
+      saves.push({ ...st, fingerprint, at: now })
+      lastSaveAt = Date.now()
+      lastFingerprint = fingerprint
+    } finally { saving = false }
+  }
+  function schedule() {
+    if (settleTimer !== null) clearTimeout(settleTimer)
+    settleTimer = setTimeout(() => { settleTimer = null; runSave() }, SETTLE_MS)
+  }
+  return { schedule, saves, resetInterval: () => { lastSaveAt = 0 } }
+}
+
+// ── 用例 1：流式输出期间不落盘，静默后落盘一次 ────────────
+{
+  let answerLen = 0
+  const c = makeController(() => ({ turns: 1, answerLen }))
+  // 模拟 10 次流式增量，每次间隔 200ms（远小于 SETTLE_MS）
+  for (let i = 0; i < 10; i++) {
+    answerLen += 50
+    c.schedule()
+    await sleep(200)
+  }
+  check('流式输出中（2秒内10次变动）尚未落盘', c.saves.length, 0)
+  await sleep(SETTLE_MS + 300)
+  check('静默期满后落盘 1 次', c.saves.length, 1)
+  check('落盘内容是最终完整长度（非中途截断）', c.saves[0]?.answerLen, 500)
+}
+
+// ── 用例 2：同一轮续写完成也能存到（不被轮次判重挡掉） ────
+{
+  let turns = 1, answerLen = 100
+  const c = makeController(() => ({ turns, answerLen }))
+  c.schedule()
+  await sleep(SETTLE_MS + 200)
+  check('首次落盘', c.saves.length, 1)
+  // 轮次不变，回答继续变长 —— 这是最容易漏存的情况
+  answerLen = 800
+  c.resetInterval()
+  c.schedule()
+  await sleep(SETTLE_MS + 200)
+  check('轮次未变但回答变长 → 仍然落盘', c.saves.length, 2)
+  check('第二次落盘为补完后的长度', c.saves[1]?.answerLen, 800)
+}
+
+// ── 用例 3：内容完全没变时不重复写 ───────────────────────
+{
+  const c = makeController(() => ({ turns: 3, answerLen: 400 }))
+  c.schedule()
+  await sleep(SETTLE_MS + 200)
+  check('内容未变——首次落盘', c.saves.length, 1)
+  c.resetInterval()
+  c.schedule()
+  await sleep(SETTLE_MS + 200)
+  check('指纹相同 → 不重复落盘', c.saves.length, 1)
+}
+
+// ── 用例 4：最小间隔抑制抖动 ─────────────────────────────
+{
+  let answerLen = 100
+  const c = makeController(() => ({ turns: 1, answerLen }))
+  c.schedule()
+  await sleep(SETTLE_MS + 200)
+  check('抖动测试——首次落盘', c.saves.length, 1)
+  // 不重置 lastSaveAt，立刻再来一次变动
+  answerLen = 200
+  c.schedule()
+  await sleep(SETTLE_MS + 200)
+  check('距上次不足 3 秒 → 被最小间隔挡住', c.saves.length, 1)
+  await sleep(MIN_INTERVAL_MS)
+  answerLen = 300
+  c.schedule()
+  await sleep(SETTLE_MS + 200)
+  check('超过最小间隔后恢复落盘', c.saves.length, 2)
+}
+
+// ── 用例 5：自身 UI 变动过滤 ─────────────────────────────
+{
+  document.body.insertAdjacentHTML('beforeend',
+    '<div class="keji-autosave"><span class="keji-autosave__label">自动保存</span></div>' +
+    '<div id="chat"><p>回答内容</p></div>')
+
+  function isOwnMutation(m) {
+    const node = m.target.nodeType === Node.TEXT_NODE ? m.target.parentElement : m.target
+    return !!node?.closest?.('.keji-autosave, .keji-btn-container, .keji-tooltip, .keji-toast')
+  }
+  let triggered = 0
+  const ob = new MutationObserver((recs) => {
+    if (recs.every(isOwnMutation)) return
+    triggered++
+  })
+  ob.observe(document.body, { childList: true, subtree: true, characterData: true })
+
+  // 改自己的开关文本 —— 不应触发
+  document.querySelector('.keji-autosave__label').textContent = '自动保存 · 4 轮'
+  await sleep(120)
+  check('修改自身开关文本 → 不触发保存', triggered, 0)
+
+  // 改页面对话内容 —— 应触发
+  document.querySelector('#chat p').textContent = '回答内容变长了'
+  await sleep(120)
+  check('修改页面对话内容 → 触发保存', triggered, 1)
+  ob.disconnect()
+}
+
+const s = document.getElementById('summary')
+s.textContent = `共 ${pass + fail} 项：通过 ${pass}，失败 ${fail}`
+s.style.background = fail === 0 ? '#dcfce7' : '#fee2e2'
+s.dataset.status = 'done'
+s.dataset.pass = String(pass)
+s.dataset.fail = String(fail)
+</script>
+</body>
+</html>

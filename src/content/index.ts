@@ -7,6 +7,7 @@ import {
 import { getPlatformAdapter, getPlatformName } from './platforms'
 import { initTooltipListener, removeTooltip } from './tooltip'
 import { initShortcuts, showShortcutToast } from './shortcuts'
+import { initAutoSave } from './autoSave'
 import type { Snippet } from '../lib/types'
 import './styles.css'
 
@@ -219,6 +220,10 @@ try {
       console.log('[keji] Save buttons injected for', platformName)
     }
   }
+
+  // 对话自动保存开关（逐对话生效，默认关闭）
+  initAutoSave()
+  console.log('[keji] Auto-save toggle initialized')
 } catch (err) {
   console.error('[keji] Initialization error:', err)
 }

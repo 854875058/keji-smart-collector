@@ -118,10 +118,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         !snippet.folder && activeFolder
           ? { ...snippet, folder: activeFolder }
           : snippet
-      setChecked({
-        snippets: [withFolder, ...snippets],
-        saveResult: { success: true, snippet: withFolder },
-      })
+      // silent：自动保存首次建笔记时不弹提示
+      setChecked(
+        message.silent
+          ? { snippets: [withFolder, ...snippets] }
+          : {
+              snippets: [withFolder, ...snippets],
+              saveResult: { success: true, snippet: withFolder },
+            }
+      )
     })
     sendResponse({ status: 'success' })
     return true
@@ -138,7 +143,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // 用新抓取的对话覆盖已有笔记（保留标题、文件夹、标签、AI 产物等人工整理结果）
   if (message.type === 'UPDATE_CONVERSATION') {
-    const { id, payload } = message as { id: string; payload: Snippet }
+    const { id, payload, silent } = message as {
+      id: string
+      payload: Snippet
+      silent?: boolean
+    }
     chrome.storage.local.get(['snippets'], (data) => {
       const snippets: Snippet[] = data.snippets || []
       const updated = snippets.map((s) => {
@@ -155,10 +164,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           cloudStatus: s.cloudStatus === 'synced' ? 'dirty' : s.cloudStatus,
         }
       })
-      setChecked({
-        snippets: updated,
-        saveResult: { success: true, snippet: updated.find((s) => s.id === id) },
-      })
+      // 自动保存每轮都会触发，写 saveResult 会让侧边栏反复弹提示
+      setChecked(
+        silent
+          ? { snippets: updated }
+          : {
+              snippets: updated,
+              saveResult: { success: true, snippet: updated.find((s) => s.id === id) },
+            }
+      )
     })
     sendResponse({ status: 'success' })
     return true
