@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "可记 - 智能收藏助手",
+  "version": "1.0.2",
+  "description": "一键保存、整理和搜索来自 ChatGPT、Claude 和 Gemini 的高质量 AI 回答。",
+  "permissions": [
+    "storage",
+    "sidePanel",
+    "activeTab",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_title": "打开 可记",
+    "default_icon": {
+      "16": "app-icon-16.png",
+      "32": "app-icon-16.png",
+      "48": "app-icon-16.png",
+      "128": "app-icon-128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://wiubfypzgealjzrjcvxw.supabase.co https://*.supabase.co https://keji.asia;"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "all_frames": true,
+      "js": [
+        "assets/content.js"
+      ],
+      "css": [
+        "assets/content.css"
+      ]
+    }
+  ],
+  "icons": {
+    "16": "app-icon-16.png",
+    "32": "app-icon-16.png",
+    "48": "app-icon-16.png",
+    "128": "app-icon-128.png"
+  }
+}
